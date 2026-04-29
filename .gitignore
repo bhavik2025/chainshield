@@ -1,14 +1,28 @@
-# Frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.env
-frontend/.env.local
+# ── Frontend (Vite/React) ─────────────────────────────────────
+chainshield/node_modules/
+chainshield/dist/
+chainshield/.env
+chainshield/.env.local
+chainshield/.env.*.local
 
-# Backend
+# ── Backend (Python/FastAPI) ──────────────────────────────────
 backend/.env
-backend/.env.example
-backend/serviceAccountKey.json
 backend/__pycache__/
 backend/**/__pycache__/
 backend/*.db
 backend/**/*.pyc
+backend/*.pyc
+backend/serviceAccountKey.json
+backend/.pytest_cache/
+
+# ── OS / Editor ───────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+*.log
+
+# ── Temp files ────────────────────────────────────────────────
+~$*
+*.tmp
