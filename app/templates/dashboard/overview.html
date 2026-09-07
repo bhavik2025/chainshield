@@ -1,0 +1,89 @@
+{% extends "dashboard/_layout.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block dashboard_content %}
+<div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
+  <div class="col"><div class="card h-100 border-0 shadow-sm"><div class="card-body">
+    <div class="text-primary mb-2 fs-4">&#128101;</div>
+    <div class="fs-3 fw-bold">{{ total_users }}</div>
+    <div class="text-muted small">Total Users</div>
+  </div></div></div>
+  <div class="col"><div class="card h-100 border-0 shadow-sm"><div class="card-body">
+    <div class="text-info mb-2 fs-4">&#128230;</div>
+    <div class="fs-3 fw-bold">{{ active_shipments }}</div>
+    <div class="text-muted small">Active Shipments</div>
+  </div></div></div>
+  <div class="col"><div class="card h-100 border-0 shadow-sm"><div class="card-body">
+    <div class="text-danger mb-2 fs-4">&#9888;&#65039;</div>
+    <div class="fs-3 fw-bold text-danger">{{ active_disruptions }}</div>
+    <div class="text-muted small">Active Disruptions</div>
+  </div></div></div>
+  <div class="col"><div class="card h-100 border-0 shadow-sm"><div class="card-body">
+    <div class="text-info mb-2 fs-4">&#127760;</div>
+    <div class="fs-3 fw-bold">{{ logistics_hubs }}</div>
+    <div class="text-muted small">Logistics Hubs</div>
+  </div></div></div>
+  <div class="col"><div class="card h-100 border-0 shadow-sm"><div class="card-body">
+    <div class="text-success mb-2 fs-4">&#128181;</div>
+    <div class="fs-3 fw-bold text-success">${{ "%.0f"|format(total_cargo_value / 1000) }}K</div>
+    <div class="text-muted small">Total Cargo Value</div>
+  </div></div></div>
+  <div class="col"><div class="card h-100 border-0 shadow-sm"><div class="card-body">
+    <div class="text-warning mb-2 fs-4">&#128200;</div>
+    <div class="fs-3 fw-bold text-warning">${{ "%.0f"|format(value_at_risk / 1000) }}K</div>
+    <div class="text-muted small">Value at Risk</div>
+  </div></div></div>
+  <div class="col"><div class="card h-100 border-0 shadow-sm"><div class="card-body">
+    <div class="text-primary mb-2 fs-4">&#128100;</div>
+    <div class="fs-3 fw-bold">{{ managers }}</div>
+    <div class="text-muted small">Managers</div>
+  </div></div></div>
+  <div class="col"><div class="card h-100 border-0 shadow-sm"><div class="card-body">
+    <div class="text-success mb-2 fs-4">&#128737;&#65039;</div>
+    <div class="fs-3 fw-bold">{{ field_operators }}</div>
+    <div class="text-muted small">Field Operators</div>
+  </div></div></div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-md-6"><div class="card border-0 shadow-sm h-100"><div class="card-body">
+    <h6 class="card-title mb-3">Shipments by Status</h6>
+    {% for label, count in status_counts.items() %}
+    <div class="d-flex justify-content-between small mb-1">
+      <span>{{ label }}</span>
+      <span class="fw-bold {% if label == 'Disrupted' %}text-danger{% elif label == 'At Risk' %}text-warning{% else %}text-success{% endif %}">{{ count }}</span>
+    </div>
+    <div class="progress mb-3" style="height: 6px;">
+      <div class="progress-bar {% if label == 'Disrupted' %}bg-danger{% elif label == 'At Risk' %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ (count / total_shipments * 100) | round(1) }}%"></div>
+    </div>
+    {% endfor %}
+  </div></div></div>
+  <div class="col-md-6"><div class="card border-0 shadow-sm h-100"><div class="card-body">
+    <h6 class="card-title mb-3">Shipments by Mode</h6>
+    {% for mode, count in mode_counts.items() %}
+    <div class="d-flex justify-content-between small mb-1">
+      <span>{{ mode }}</span>
+      <span class="fw-bold">{{ count }}</span>
+    </div>
+    <div class="progress mb-3" style="height: 6px;">
+      <div class="progress-bar bg-primary" style="width: {{ (count / total_shipments * 100) | round(1) }}%"></div>
+    </div>
+    {% endfor %}
+  </div></div></div>
+</div>
+
+<div class="card border-0 shadow-sm"><div class="card-body">
+  <h6 class="card-title mb-3">Recent Activity</h6>
+  {% if recent_activity %}
+    <ul class="list-unstyled mb-0">
+      {% for log in recent_activity %}
+      <li class="d-flex justify-content-between border-bottom py-2 small">
+        <span>{{ log.action }}</span>
+        <span class="text-muted">{{ log.timestamp.strftime("%d/%m/%Y %H:%M") }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted small mb-0">No activity logged yet.</p>
+  {% endif %}
+</div></div>
+{% endblock %}

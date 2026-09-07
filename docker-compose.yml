@@ -1,0 +1,14 @@
+services:
+  web:
+    build: .
+    container_name: chainshield-mca
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - FLASK_CONFIG=production
+    volumes:
+      # Persist the SQLite database on the host so data survives rebuilds.
+      - ./instance:/app/instance
+    restart: unless-stopped

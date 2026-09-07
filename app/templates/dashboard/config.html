@@ -1,0 +1,24 @@
+{% extends "dashboard/_layout.html" %}
+{% block title %}Dashboard · System Config{% endblock %}
+{% block dashboard_content %}
+<div class="row g-4">
+  <div class="col-md-6"><div class="card border-0 shadow-sm"><div class="card-body">
+    <h6 class="card-title mb-3">Risk Engine Weights</h6>
+    <table class="table table-sm mb-0">
+      {% for factor, weight in risk_weights.items() %}
+      <tr><td>{{ factor }}</td><td class="text-end">{{ (weight * 100) | round(0) }}%</td></tr>
+      {% endfor %}
+    </table>
+    <p class="text-muted small mt-2 mb-0">Scan interval: every {{ scan_interval }}s</p>
+  </div></div></div>
+  <div class="col-md-6"><div class="card border-0 shadow-sm"><div class="card-body">
+    <h6 class="card-title mb-3">Integrations</h6>
+    <table class="table table-sm mb-0">
+      <tr><td>OpenWeatherMap API</td><td class="text-end"><span class="badge {% if weather_key_set %}bg-success{% else %}bg-secondary{% endif %}">{{ "Configured" if weather_key_set else "Not set (simulated)" }}</span></td></tr>
+      <tr><td>Gemini AI Assistant</td><td class="text-end"><span class="badge {% if gemini_key_set %}bg-success{% else %}bg-secondary{% endif %}">{{ "Configured" if gemini_key_set else "Not set" }}</span></td></tr>
+      <tr><td>Socket.IO async mode</td><td class="text-end"><span class="badge bg-info text-dark">{{ socketio_async_mode }}</span></td></tr>
+      <tr><td>Mode</td><td class="text-end"><span class="badge bg-dark">{{ "Debug" if debug else "Production" }}</span></td></tr>
+    </table>
+  </div></div></div>
+</div>
+{% endblock %}

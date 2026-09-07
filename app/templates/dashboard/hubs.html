@@ -1,0 +1,32 @@
+{% extends "dashboard/_layout.html" %}
+{% block title %}Dashboard · Base Cities{% endblock %}
+{% block dashboard_content %}
+<div class="row g-4">
+  <div class="col-md-8"><div class="card border-0 shadow-sm"><div class="card-body">
+    <h6 class="card-title mb-3">Logistics Hubs</h6>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Name</th><th>Location</th><th>Lat</th><th>Lng</th></tr></thead>
+        <tbody>
+          {% for hub in hubs %}
+          <tr><td>{{ hub.name }}</td><td>{{ hub.location }}</td><td>{{ hub.lat }}</td><td>{{ hub.lng }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div></div></div>
+  <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body">
+    <h6 class="card-title mb-3">Add a hub</h6>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="mb-2"><label class="form-label small">Name</label><input type="text" name="name" class="form-control form-control-sm" required></div>
+      <div class="mb-2"><label class="form-label small">Location</label><input type="text" name="location" class="form-control form-control-sm"></div>
+      <div class="row g-2 mb-3">
+        <div class="col"><label class="form-label small">Lat</label><input type="number" step="any" name="lat" class="form-control form-control-sm"></div>
+        <div class="col"><label class="form-label small">Lng</label><input type="number" step="any" name="lng" class="form-control form-control-sm"></div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm w-100">Add hub</button>
+    </form>
+  </div></div></div>
+</div>
+{% endblock %}

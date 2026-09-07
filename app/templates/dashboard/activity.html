@@ -1,0 +1,19 @@
+{% extends "dashboard/_layout.html" %}
+{% block title %}Dashboard · Activity Log{% endblock %}
+{% block dashboard_content %}
+<div class="card border-0 shadow-sm"><div class="card-body">
+  <h6 class="card-title mb-3">Activity Log</h6>
+  {% if logs %}
+  <ul class="list-unstyled mb-0">
+    {% for log in logs %}
+    <li class="d-flex justify-content-between border-bottom py-2 small">
+      <span>{{ log.user.name if log.user else "System" }} — {{ log.action }}</span>
+      <span class="text-muted">{{ log.timestamp.strftime("%d/%m/%Y %H:%M:%S") }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-muted small mb-0">No activity logged yet.</p>
+  {% endif %}
+</div></div>
+{% endblock %}

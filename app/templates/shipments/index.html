@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Shipments{% endblock %}
+{% block content %}
+<h4 class="mb-3">Shipments</h4>
+<div class="card border-0 shadow-sm"><div class="card-body">
+  {% if shipments %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Tracking No.</th><th>Origin</th><th>Destination</th><th>Mode</th><th>Status</th><th>Risk</th><th>Cargo Value</th></tr></thead>
+      <tbody>
+        {% for s in shipments %}
+        <tr>
+          <td>{{ s.tracking_no }}</td>
+          <td>{{ s.origin }}</td>
+          <td>{{ s.destination }}</td>
+          <td>{{ s.transport_mode }}</td>
+          <td>{{ s.status }}</td>
+          <td>
+            {% if s.risk_level %}
+            <span class="badge {% if s.risk_level == 'HIGH' %}bg-danger{% elif s.risk_level in ('MEDIUM', 'AT-RISK') %}bg-warning text-dark{% else %}bg-success{% endif %}">{{ s.risk_level }} ({{ s.risk_score }})</span>
+            {% else %}
+            <span class="badge bg-secondary">Not scanned</span>
+            {% endif %}
+          </td>
+          <td>${{ "%.0f"|format(s.cargo_value or 0) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted mb-0">No shipments yet. Run <code>flask seed-db</code> to add demo shipments.</p>
+  {% endif %}
+</div></div>
+{% endblock %}

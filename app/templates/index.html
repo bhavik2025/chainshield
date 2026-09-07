@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<div class="p-5 mb-4 bg-light rounded-3">
+  <h1 class="display-6 fw-bold">ChainShield Transportation System</h1>
+  <p class="col-md-8 fs-6 text-muted">
+    Resilient logistics &amp; dynamic supply chain optimization — MCA Semester 3 rebuild
+    (Flask + SQLite + Docker). Auth, the data model, the risk engine's scan loop, and the
+    route solver are live. Shipment/disruption dashboards, the live map, chat, and the AI
+    assistant are the remaining phases.
+  </p>
+  {% if not current_user.is_authenticated %}
+    <a class="btn btn-primary" href="{{ url_for('auth.login') }}">Login</a>
+    <a class="btn btn-outline-primary" href="{{ url_for('auth.register') }}">Register</a>
+  {% else %}
+    <p class="mb-2">Signed in as <strong>{{ current_user.name }}</strong> ({{ current_user.role }}).</p>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('shipments.index') }}">View shipments</a>
+    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('disruptions.index') }}">View disruptions</a>
+  {% endif %}
+</div>
+{% endblock %}

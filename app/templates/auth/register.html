@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Register{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <h3 class="mb-3">Register</h3>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="mb-3">
+        <label class="form-label">Full Name</label>
+        <input type="text" name="name" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-control" required minlength="6">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Role</label>
+        <select name="role" class="form-select">
+          <option value="manager">Manager</option>
+          <option value="admin">Admin</option>
+          <option value="captain">Field Operator — Captain</option>
+          <option value="pilot">Field Operator — Pilot</option>
+          <option value="driver">Field Operator — Driver</option>
+          <option value="loco_pilot">Field Operator — Loco Pilot</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary w-100">Create Account</button>
+    </form>
+    <p class="mt-3">Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a>.</p>
+  </div>
+</div>
+{% endblock %}
