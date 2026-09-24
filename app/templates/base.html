@@ -1,73 +1,140 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>{% block title %}ChainShield{% endblock %} · ChainShield Transportation System</title>
-  <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
+  <meta name="theme-color" content="#0f172a">
+  <title>{% block title %}ChainShield{% endblock %} · ChainShield</title>
+  <script>
+    // Apply the saved / system theme before first paint (no flash).
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("cs-theme"); } catch (e) {}
+      if (!t) t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-bs-theme", t);
+      try { if (localStorage.getItem("cs-sidebar") === "collapsed") document.documentElement.classList.add("sidebar-collapsed"); } catch (e) {}
+    })();
+  </script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236366f1'/%3E%3Cstop offset='1' stop-color='%2314b8a6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Cpath d='M16 7l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10v-5z' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/inter/inter.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/icons/bootstrap-icons.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   {% block head %}{% endblock %}
 </head>
+{% set ep = request.endpoint or '' %}
 <body data-authenticated="{{ 'true' if current_user.is_authenticated else 'false' }}" data-user-id="{{ current_user.id if current_user.is_authenticated else '' }}">
-  {% set ep = request.endpoint or '' %}
-  <nav class="navbar navbar-expand-lg navbar-dark cs-navbar">
-    <div class="container-fluid">
-      <a class="navbar-brand fw-bold" href="{{ url_for('main.index') }}">&#128737;&#65039; ChainShield</a>
-      {% if current_user.is_authenticated %}
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"><span class="navbar-toggler-icon"></span></button>
-      <div class="collapse navbar-collapse" id="mainNav">
-        <ul class="navbar-nav me-auto">
-          <li class="nav-item"><a class="nav-link {% if ep.startswith('main.dashboard') %}active{% endif %}" href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link {% if ep.startswith('shipments.') and ep not in ('shipments.live_map',) %}active{% endif %}" href="{{ url_for('shipments.index') }}">Shipments</a></li>
-          <li class="nav-item"><a class="nav-link {% if ep == 'shipments.live_map' %}active{% endif %}" href="{{ url_for('shipments.live_map') }}">Live Map</a></li>
-          <li class="nav-item"><a class="nav-link {% if ep.startswith('disruptions.') %}active{% endif %}" href="{{ url_for('disruptions.index') }}">Disruptions</a></li>
-          {% if can_manage(current_user) %}
-          <li class="nav-item"><a class="nav-link {% if ep.startswith('main.report') %}active{% endif %}" href="{{ url_for('main.reports') }}">Reports</a></li>
-          {% endif %}
-          <li class="nav-item"><a class="nav-link {% if ep.startswith('chat.') %}active{% endif %}" href="{{ url_for('chat.index') }}">Chat</a></li>
-          <li class="nav-item"><a class="nav-link {% if ep.startswith('assistant.') %}active{% endif %}" href="{{ url_for('assistant.index') }}">AI Assistant</a></li>
-        </ul>
-        <div class="d-flex align-items-center gap-3">
-          <a href="{{ url_for('notifications.index') }}" class="text-light position-relative text-decoration-none" title="Notifications">
-            &#128276;
-            <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger {% if not unread_notifications %}d-none{% endif %}">{{ unread_notifications }}</span>
-          </a>
-          <span class="navbar-text text-light small">{{ current_user.name }} <span class="opacity-75">({{ current_user.role }})</span></span>
-          <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.logout') }}">Logout</a>
+{% macro flashes() -%}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show mb-3" role="alert">
+        <span>{{ message }}</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+{%- endmacro %}
+
+{% if current_user.is_authenticated and not public_page %}
+{% macro side(endpoint_prefix, url, icon, label, count=None, exact=False) -%}
+  {% set active = (ep == endpoint_prefix) if exact else ep.startswith(endpoint_prefix) %}
+  <a class="side-link {{ 'active' if active }}" href="{{ url }}" title="{{ label }}" data-bs-placement="right">
+    <i class="bi {{ icon }}"></i><span class="label">{{ label }}</span>
+    {% if count %}<span class="count">{{ count }}</span>{% endif %}
+  </a>
+{%- endmacro %}
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+    <a class="sidebar-brand" href="{{ url_for('main.dashboard') }}">
+      <span class="brand-mark"><i class="bi bi-shield-shaded"></i></span>
+      <span class="brand-text">ChainShield<span class="brand-sub">Transportation System</span></span>
+    </a>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Overview</div>
+      {{ side('main.dashboard', url_for('main.dashboard'), 'bi-grid-1x2', 'Dashboard', exact=True) }}
+      {{ side('shipments.live_map', url_for('shipments.live_map'), 'bi-globe-asia-australia', 'Live Map', exact=True) }}
+      <div class="nav-section">Operations</div>
+      <a class="side-link {{ 'active' if ep.startswith('shipments.') and ep != 'shipments.live_map' }}" href="{{ url_for('shipments.index') }}" title="Shipments">
+        <i class="bi bi-box-seam"></i><span class="label">Shipments</span></a>
+      {{ side('disruptions.', url_for('disruptions.index'), 'bi-exclamation-triangle', 'Disruptions', count=open_disruption_count) }}
+      {% if can_manage(current_user) %}{{ side('main.report', url_for('main.reports'), 'bi-bar-chart-line', 'Reports') }}{% endif %}
+      <div class="nav-section">Collaborate</div>
+      {{ side('chat.', url_for('chat.index'), 'bi-chat-dots', 'Team Chat') }}
+      {{ side('notifications.', url_for('notifications.index'), 'bi-bell', 'Notifications', count=unread_notifications) }}
+      {{ side('assistant.', url_for('assistant.index'), 'bi-stars', 'AI Assistant') }}
+      {% if current_user.role == 'admin' %}
+      <div class="nav-section">Administration</div>
+      <a class="side-link {{ 'active' if ep.startswith('main.dashboard_') or ep in ('main.edit_hub', 'main.dashboard_cargo') }}" href="{{ url_for('main.dashboard_users') }}" title="Admin Panel">
+        <i class="bi bi-sliders"></i><span class="label">Admin Panel</span></a>
+      {% endif %}
+    </nav>
+    <div class="sidebar-foot">
+      <div class="user-chip">
+        <span class="avatar">{{ (current_user.name.split()|map('first')|join|upper)[:2] }}</span>
+        <span class="user-meta"><span class="name d-block">{{ current_user.name }}</span><span class="role">{{ current_user.role|replace('_', ' ') }}</span></span>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-backdrop" data-cs-close-sidebar></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn" id="sidebarToggle" type="button" aria-label="Toggle navigation"><i class="bi bi-layout-sidebar"></i></button>
+      <div class="topbar-title">{% block topbar_title %}{{ self.title() }}{% endblock %}<small>{% block topbar_sub %}<span class="live-dot me-1"></span> Live · risk scan every {{ config.RISK_SCAN_INTERVAL_SECONDS }}s{% endblock %}</small></div>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <button class="icon-btn theme-toggle" id="themeToggle" type="button" aria-label="Toggle dark mode" title="Toggle theme">
+          <i class="bi bi-moon-stars-fill"></i><i class="bi bi-sun-fill"></i>
+        </button>
+        <div class="dropdown">
+          <button class="icon-btn" id="notifBtn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Notifications">
+            <i class="bi bi-bell"></i>
+            <span id="notifBadge" class="dot {% if not unread_notifications %}d-none{% endif %}">{{ unread_notifications }}</span>
+          </button>
+          <div class="dropdown-menu dropdown-menu-end notif-menu">
+            <div class="d-flex align-items-center justify-content-between px-2 pt-1 pb-2">
+              <span class="fw-600">Notifications</span>
+              <a class="small" href="{{ url_for('notifications.index') }}">View all</a>
+            </div>
+            <div id="notifMenuList"><div class="empty-state py-4"><i class="bi bi-inbox"></i><span class="small">Loading…</span></div></div>
+          </div>
+        </div>
+        <div class="dropdown">
+          <button class="icon-btn p-0 border-0 bg-transparent" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account">
+            <span class="avatar sm">{{ (current_user.name.split()|map('first')|join|upper)[:2] }}</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li class="px-3 py-2"><div class="fw-600">{{ current_user.name }}</div><div class="small text-muted">{{ current_user.email }}</div></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('main.dashboard') }}"><i class="bi bi-grid-1x2"></i> Dashboard</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('notifications.index') }}"><i class="bi bi-bell"></i> Notifications</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Log out</a></li>
+          </ul>
         </div>
       </div>
-      {% else %}
-      <div class="d-flex">
-        <a class="btn btn-outline-light btn-sm me-2" href="{{ url_for('auth.login') }}">Login</a>
-        <a class="btn btn-light btn-sm" href="{{ url_for('auth.register') }}">Register</a>
-      </div>
-      {% endif %}
-    </div>
-  </nav>
-
-  <div class="container-xl mt-4 mb-5">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
-    {% block content %}{% endblock %}
+    </header>
+    <main class="content fade-page">
+      {{ flashes() }}
+      {% block content %}{% endblock %}
+    </main>
   </div>
+</div>
+{% else %}
+<div class="fade-page">
+  {% block public %}
+  <div class="container py-4">{{ flashes() }}{{ self.content() }}</div>
+  {% endblock %}
+</div>
+{% endif %}
 
-  <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastArea"></div>
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastArea" style="z-index: 1090"></div>
 
-  <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
-  {% if current_user.is_authenticated %}
-  <script src="{{ url_for('static', filename='vendor/socketio/socket.io.min.js') }}"></script>
-  {% endif %}
-  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-  {% block scripts %}{% endblock %}
+<script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+{% if current_user.is_authenticated %}
+<script src="{{ url_for('static', filename='vendor/socketio/socket.io.min.js') }}"></script>
+{% endif %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

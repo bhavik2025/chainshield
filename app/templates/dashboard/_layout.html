@@ -1,17 +1,24 @@
 {% extends "base.html" %}
+{% from "_macros.html" import page_head %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <span class="badge bg-primary-subtle text-primary-emphasis">Admin view</span>
+{% if active_tab != 'overview' %}
+<div class="page-head reveal">
+  <div><div class="eyebrow">Administration</div><h1>Admin Panel</h1><p>Manage people, master data and system settings.</p></div>
 </div>
-<ul class="nav nav-tabs mb-4">
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'overview' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">Overview</a></li>
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'users' %}active{% endif %}" href="{{ url_for('main.dashboard_users') }}">Users</a></li>
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'shipments' %}active{% endif %}" href="{{ url_for('main.dashboard_shipments') }}">Shipments</a></li>
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'hubs' %}active{% endif %}" href="{{ url_for('main.dashboard_hubs') }}">Base Cities</a></li>
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'cargo' %}active{% endif %}" href="{{ url_for('main.dashboard_cargo') }}">Cargo Types</a></li>
-  <li class="nav-item"><a class="nav-link" href="{{ url_for('main.reports') }}">Reports</a></li>
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'config' %}active{% endif %}" href="{{ url_for('main.dashboard_config') }}">System Config</a></li>
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'activity' %}active{% endif %}" href="{{ url_for('main.dashboard_activity') }}">Activity Log</a></li>
-</ul>
+{% endif %}
+<nav class="seg-tabs reveal" aria-label="Admin sections">
+  {% for key, ep_name, icon, label in [
+    ('overview', 'main.dashboard', 'bi-speedometer2', 'Overview'),
+    ('users', 'main.dashboard_users', 'bi-people', 'Users'),
+    ('shipments', 'main.dashboard_shipments', 'bi-box-seam', 'Shipments'),
+    ('hubs', 'main.dashboard_hubs', 'bi-geo-alt', 'Base Cities'),
+    ('cargo', 'main.dashboard_cargo', 'bi-boxes', 'Cargo Types'),
+    ('reports', 'main.reports', 'bi-bar-chart-line', 'Reports'),
+    ('config', 'main.dashboard_config', 'bi-gear', 'System Config'),
+    ('activity', 'main.dashboard_activity', 'bi-clock-history', 'Activity Log'),
+  ] %}
+  <a class="{{ 'active' if active_tab == key }}" href="{{ url_for(ep_name) }}"><i class="bi {{ icon }}"></i> {{ label }}</a>
+  {% endfor %}
+</nav>
 {% block dashboard_content %}{% endblock %}
 {% endblock %}

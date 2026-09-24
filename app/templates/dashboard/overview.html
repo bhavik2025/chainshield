@@ -1,56 +1,64 @@
 {% extends "dashboard/_layout.html" %}
+{% from "_macros.html" import kpi %}
 {% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head reveal">
+  <div>
+    <div class="eyebrow">Control centre</div>
+    <h1>Good {{ 'morning' if now_hour < 12 else ('afternoon' if now_hour < 17 else 'evening') }}, {{ current_user.name.split()[0] }}</h1>
+    <p>Here's what's happening across your supply chain right now.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-ghost" href="{{ url_for('main.reports') }}"><i class="bi bi-download"></i> Reports</a>
+    <a class="btn btn-ghost" href="{{ url_for('shipments.live_map') }}"><i class="bi bi-globe-asia-australia"></i> Live map</a>
+    <a class="btn btn-primary" href="{{ url_for('shipments.create') }}"><i class="bi bi-plus-lg"></i> New shipment</a>
+  </div>
+</div>
+{{ super() }}
+{% endblock %}
 {% block dashboard_content %}
-{% set kpis = [
-  ("&#128101;", total_users, "Total Users", "", None),
-  ("&#128230;", active_shipments, "Active Shipments", "", None),
-  ("&#9888;&#65039;", active_disruptions, "Active Disruptions", "text-danger", "open_disruptions"),
-  ("&#127760;", logistics_hubs, "Logistics Hubs", "", None),
-  ("&#128181;", "₹{:,.1f}L".format(total_cargo_value / 100000), "Total Cargo Value", "text-success", None),
-  ("&#128200;", "₹{:,.1f}L".format(value_at_risk / 100000), "Value at Risk", "text-warning", None),
-  ("&#128100;", managers, "Managers", "", None),
-  ("&#128737;&#65039;", field_operators, "Field Operators", "", None),
-] %}
-<div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
-  {% for icon, value, label, cls, key in kpis %}
-  <div class="col"><div class="card h-100 border-0 shadow-sm kpi-card"><div class="card-body">
-    <div class="mb-2 fs-4">{{ icon|safe }}</div>
-    <div class="kpi-value {{ cls }}" {% if key %}data-kpi="{{ key }}"{% endif %}>{{ value }}</div>
-    <div class="kpi-label">{{ label }}</div>
-  </div></div></div>
-  {% endfor %}
+<div class="row g-3 g-lg-4 mb-4">
+  <div class="col-6 col-lg-3">{{ kpi("bi-box-seam", active_shipments, "Active shipments", count=active_shipments) }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("bi-exclamation-triangle", active_disruptions, "Open disruptions", "red", count=active_disruptions, key="open_disruptions") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("bi-currency-rupee", "₹%.1fL"|format(total_cargo_value / 100000), "Total cargo value", "green", count="%.1f"|format(total_cargo_value / 100000), prefix="₹", suffix="L") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("bi-graph-down-arrow", "₹%.1fL"|format(value_at_risk / 100000), "Value at risk", "amber", count="%.1f"|format(value_at_risk / 100000), prefix="₹", suffix="L") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("bi-people", total_users, "Total users", count=total_users) }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("bi-geo-alt", logistics_hubs, "Logistics hubs", "teal", count=logistics_hubs) }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("bi-person-badge", managers, "Managers", count=managers) }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("bi-truck", field_operators, "Field operators", "orange", count=field_operators) }}</div>
 </div>
 
 {% include "dashboard/_charts.html" %}
 
-<div class="row g-4">
-  <div class="col-md-5"><div class="card border-0 shadow-sm h-100"><div class="card-body">
-    <h6 class="card-title mb-3">Shipments by Status</h6>
+<div class="row g-3 g-lg-4">
+  <div class="col-lg-5"><div class="card h-100 reveal"><div class="card-body">
+    <div class="card-head"><div class="card-title">Shipments by status</div><a class="small fw-600" href="{{ url_for('shipments.live_map') }}">Open map <i class="bi bi-arrow-right"></i></a></div>
     {% for label, count in status_counts.items() %}
-    <div class="d-flex justify-content-between small mb-1">
-      <span>{{ label }}</span>
-      <span class="fw-bold {% if label == 'Disrupted' %}text-danger{% elif label == 'At Risk' %}text-warning{% else %}text-success{% endif %}">{{ count }}</span>
+    {% set tone = 'var(--risk-high)' if label == 'Disrupted' else ('var(--risk-atrisk)' if label == 'At Risk' else 'var(--risk-low)') %}
+    <div class="d-flex justify-content-between small mb-2 mt-3">
+      <span class="fw-600">{{ label }}</span><span class="fw-bold" style="color: {{ tone }}">{{ count }}</span>
     </div>
-    <div class="progress mb-3" style="height: 6px;">
-      <div class="progress-bar {% if label == 'Disrupted' %}bg-danger{% elif label == 'At Risk' %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ (count / total_shipments * 100) | round(1) }}%"></div>
-    </div>
+    <div class="progress" style="height: 8px;"><div class="progress-bar" data-width="{{ (count / total_shipments * 100) | round(1) }}" style="width: 0; background: {{ tone }}"></div></div>
     {% endfor %}
-    <a class="btn btn-sm btn-outline-primary mt-2" href="{{ url_for('shipments.live_map') }}">Open live map &rarr;</a>
   </div></div></div>
-  <div class="col-md-7"><div class="card border-0 shadow-sm h-100"><div class="card-body">
-    <h6 class="card-title mb-3">Recent Activity</h6>
+  <div class="col-lg-7"><div class="card h-100 reveal"><div class="card-body">
+    <div class="card-head"><div class="card-title">Recent activity</div><a class="small fw-600" href="{{ url_for('main.dashboard_activity') }}">View all <i class="bi bi-arrow-right"></i></a></div>
     {% if recent_activity %}
-      <ul class="list-unstyled mb-0">
-        {% for log in recent_activity %}
-        <li class="d-flex justify-content-between gap-3 border-bottom py-2 small">
-          <span>{{ log.action }}</span>
-          <span class="text-muted text-nowrap">{{ log.timestamp.strftime("%d/%m %H:%M") }}</span>
-        </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="text-muted small mb-0">No activity logged yet.</p>
-    {% endif %}
+    <ul class="list-clean">
+      {% for log in recent_activity %}
+      <li class="activity-item">
+        <span class="ico"><i class="bi {{ 'bi-lightning-charge' if 'DEMO' in log.action else ('bi-check2-circle' if 'resolved' in log.action else ('bi-box-arrow-in-right' if 'logged in' in log.action else 'bi-pencil-square')) }}"></i></span>
+        <span>{{ log.action }}</span>
+        <span class="when">{{ log.timestamp.strftime("%d %b, %H:%M") }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<div class="empty-state"><i class="bi bi-clock-history"></i>No activity yet.</div>{% endif %}
   </div></div></div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll(".progress-bar[data-width]").forEach((b) => setTimeout(() => (b.style.width = b.dataset.width + "%"), 250));
+</script>
 {% endblock %}

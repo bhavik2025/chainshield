@@ -1,21 +1,21 @@
 {% extends "dashboard/_layout.html" %}
 {% block title %}Dashboard · Base Cities{% endblock %}
 {% block dashboard_content %}
-<div class="row g-4">
-  <div class="col-lg-8"><div class="card border-0 shadow-sm"><div class="card-body">
-    <h6 class="card-title mb-3">Logistics Hubs</h6>
+<div class="row g-3 g-lg-4">
+  <div class="col-xl-8"><div class="card reveal"><div class="card-body">
+    <div class="card-head"><div class="card-title">Logistics hubs <span class="tag ms-1">{{ hubs|length }}</span></div></div>
     <div class="table-responsive">
-      <table class="table table-sm align-middle">
+      <table class="table align-middle">
         <thead><tr><th>Name</th><th>Location</th><th>Lat</th><th>Lng</th><th></th></tr></thead>
         <tbody>
           {% for hub in hubs %}
           <tr>
-            <td>{{ hub.name }}</td><td class="small">{{ hub.location }}</td><td class="small">{{ hub.lat }}</td><td class="small">{{ hub.lng }}</td>
+            <td class="fw-600"><i class="bi bi-geo-alt-fill me-1" style="color:var(--cs-primary)"></i>{{ hub.name }}</td><td class="small">{{ hub.location }}</td><td class="small">{{ hub.lat }}</td><td class="small">{{ hub.lng }}</td>
             <td class="text-end text-nowrap">
-              <a class="btn btn-link btn-sm p-0 me-2" href="{{ url_for('main.edit_hub', hub_id=hub.id) }}">Edit</a>
+              <a class="btn btn-sm btn-ghost" href="{{ url_for('main.edit_hub', hub_id=hub.id) }}" title="Edit"><i class="bi bi-pencil"></i></a>
               <form method="post" action="{{ url_for('main.delete_hub', hub_id=hub.id) }}" class="d-inline" onsubmit="return csConfirm(this)">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-link btn-sm p-0 text-danger">Delete</button>
+                <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash3"></i></button>
               </form>
             </td>
           </tr>
@@ -24,17 +24,17 @@
       </table>
     </div>
   </div></div></div>
-  <div class="col-lg-4"><div class="card border-0 shadow-sm"><div class="card-body">
-    <h6 class="card-title mb-3">Add a hub</h6>
+  <div class="col-xl-4"><div class="card reveal"><div class="card-body">
+    <div class="card-title mb-3"><i class="bi bi-plus-circle me-1 text-primary"></i> Add a hub</div>
     <form method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="mb-2"><label class="form-label small">Name</label><input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. Nagpur Hub" required></div>
-      <div class="mb-2"><label class="form-label small">Location</label><input type="text" name="location" class="form-control form-control-sm"></div>
+      <div class="mb-2"><label class="form-label">Name</label><input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. Nagpur Hub" required></div>
+      <div class="mb-2"><label class="form-label">Location</label><input type="text" name="location" class="form-control form-control-sm"></div>
       <div class="row g-2 mb-3">
-        <div class="col"><label class="form-label small">Lat</label><input type="number" step="any" name="lat" class="form-control form-control-sm"></div>
-        <div class="col"><label class="form-label small">Lng</label><input type="number" step="any" name="lng" class="form-control form-control-sm"></div>
+        <div class="col"><label class="form-label">Lat</label><input type="number" step="any" name="lat" class="form-control form-control-sm"></div>
+        <div class="col"><label class="form-label">Lng</label><input type="number" step="any" name="lng" class="form-control form-control-sm"></div>
       </div>
-      <button type="submit" class="btn btn-primary btn-sm w-100">Add hub</button>
+      <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg"></i> Add hub</button>
     </form>
     <p class="form-text mb-0 mt-2">Name hubs "&lt;City&gt; Hub" so shipments to that city route through it.</p>
   </div></div></div>

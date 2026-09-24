@@ -1,53 +1,19 @@
 {% extends "base.html" %}
-{% from "_macros.html" import risk_badge, status_badge %}
 {% block title %}Shipments{% endblock %}
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-  <h4 class="mb-0">Shipments</h4>
-  <div class="d-flex gap-2">
-    <input id="shipmentFilter" type="search" class="form-control form-control-sm" placeholder="Filter…" style="max-width:200px">
-    <a class="btn btn-outline-primary btn-sm text-nowrap" href="{{ url_for('shipments.live_map') }}">Live map</a>
-    {% if can_manage(current_user) %}
-    <a class="btn btn-primary btn-sm text-nowrap" href="{{ url_for('shipments.create') }}">+ New shipment</a>
-    {% endif %}
+<div class="page-head reveal">
+  <div><div class="eyebrow">Operations</div><h1>Shipments</h1><p>{{ shipments|length }} shipment{{ '' if shipments|length == 1 else 's' }} · risk re-scored every scan.</p></div>
+  <div class="page-actions">
+    <div class="input-icon"><i class="bi bi-search"></i><input type="search" class="form-control" placeholder="Filter shipments…" data-filter="#shipmentTable" style="min-width: 220px"></div>
+    <a class="btn btn-ghost" href="{{ url_for('shipments.live_map') }}"><i class="bi bi-globe-asia-australia"></i> Map</a>
+    {% if can_manage(current_user) %}<a class="btn btn-primary" href="{{ url_for('shipments.create') }}"><i class="bi bi-plus-lg"></i> New shipment</a>{% endif %}
   </div>
 </div>
-<div class="card border-0 shadow-sm"><div class="card-body">
+<div class="card reveal"><div class="card-body">
   {% if shipments %}
-  <div class="table-responsive">
-    <table class="table table-sm table-hover align-middle mb-0" id="shipmentTable">
-      <thead><tr><th>Tracking No.</th><th>Route</th><th>Mode</th><th>Cargo</th><th>Status</th><th>Risk</th><th class="text-end">Value</th><th></th></tr></thead>
-      <tbody>
-        {% for s in shipments %}
-        <tr>
-          <td><a href="{{ url_for('shipments.detail', shipment_id=s.id) }}" class="fw-semibold text-decoration-none">{{ s.tracking_no }}</a></td>
-          <td>{{ s.origin }} &rarr; {{ s.destination }}</td>
-          <td>{{ s.transport_mode }}</td>
-          <td>{{ s.cargo_type.name if s.cargo_type else "—" }}</td>
-          <td>{{ status_badge(s.status) }}</td>
-          <td>{{ risk_badge(s.risk_level, s.risk_score) }}</td>
-          <td class="text-end">₹{{ "{:,.0f}".format(s.cargo_value or 0) }}</td>
-          <td class="text-end text-nowrap">
-            <a class="btn btn-link btn-sm p-0 me-2" href="{{ url_for('shipments.detail', shipment_id=s.id) }}">View</a>
-            {% if can_manage(current_user) %}
-            <a class="btn btn-link btn-sm p-0" href="{{ url_for('shipments.edit', shipment_id=s.id) }}">Edit</a>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    {% include "shipments/_table.html" %}
   {% else %}
-  <p class="text-muted mb-0">No shipments yet.{% if can_manage(current_user) %} <a href="{{ url_for('shipments.create') }}">Create the first one</a> or run <code>flask seed-db</code>.{% endif %}</p>
+  <div class="empty-state"><i class="bi bi-box-seam"></i>No shipments yet.{% if can_manage(current_user) %} <a href="{{ url_for('shipments.create') }}">Create the first one</a> or run <span class="kbd">flask seed-db</span>.{% endif %}</div>
   {% endif %}
 </div></div>
-<script>
-document.getElementById("shipmentFilter")?.addEventListener("input", (e) => {
-  const q = e.target.value.toLowerCase();
-  document.querySelectorAll("#shipmentTable tbody tr").forEach((tr) => {
-    tr.style.display = tr.textContent.toLowerCase().includes(q) ? "" : "none";
-  });
-});
-</script>
 {% endblock %}

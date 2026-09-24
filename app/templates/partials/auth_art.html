@@ -1,0 +1,24 @@
+<div class="auth-art">
+  <div class="grid-bg"></div>
+  <svg class="route" viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#818cf8"/><stop offset="1" stop-color="#2dd4bf"/></linearGradient></defs>
+    <path d="M40 620 C 160 520, 220 640, 320 520 S 480 360, 560 260" fill="none" stroke="url(#rg)" stroke-width="2.5" opacity=".7"/>
+    <path d="M60 300 C 180 360, 260 240, 360 330 S 500 480, 580 420" fill="none" stroke="#818cf8" stroke-width="1.5" opacity=".35"/>
+    <circle cx="320" cy="520" r="7" fill="#f97316"><animate attributeName="r" values="6;11;6" dur="2.2s" repeatCount="indefinite"/></circle>
+    <circle cx="320" cy="520" r="22" fill="none" stroke="#f97316" opacity=".35"><animate attributeName="r" values="12;34;12" dur="2.2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".5;0;.5" dur="2.2s" repeatCount="indefinite"/></circle>
+    <circle cx="560" cy="260" r="6" fill="#2dd4bf"/><circle cx="40" cy="620" r="6" fill="#818cf8"/>
+  </svg>
+  <a href="{{ url_for('main.index') }}" class="d-flex align-items-center gap-2 text-white fw-bold position-relative" style="z-index:1">
+    <span class="brand-mark"><i class="bi bi-shield-shaded"></i></span> ChainShield
+  </a>
+  <div class="position-relative" style="z-index:1">
+    <h2 class="mb-3">Catch supply-chain disruptions <span style="background:linear-gradient(90deg,#a5b4fc,#5eead4);-webkit-background-clip:text;background-clip:text;color:transparent">before they cascade.</span></h2>
+    <p class="mb-4">Every shipment scored every minute on weather, congestion, cargo sensitivity and lane history — with ranked reroute options the moment risk rises.</p>
+    <div class="d-flex flex-wrap gap-2">
+      <span class="auth-stat float"><i class="bi bi-activity text-info"></i> 4-factor risk engine</span>
+      <span class="auth-stat float" style="animation-delay:.8s"><i class="bi bi-signpost-split" style="color:#fb923c"></i> Ranked route options</span>
+      <span class="auth-stat float" style="animation-delay:1.6s"><i class="bi bi-lightning-charge" style="color:#fbbf24"></i> Real-time alerts</span>
+    </div>
+  </div>
+  <div class="small position-relative" style="z-index:1; color:#818cf8">MCA Semester 3 · Group 59 · LJ Institute of Computer Application</div>
+</div>

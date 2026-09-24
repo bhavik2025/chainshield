@@ -1,59 +1,76 @@
-{# Chart.js panels — expects `charts` (from services/stats.py) and `stats_url` #}
-<div class="row g-4 mb-4">
-  <div class="col-md-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body">
-    <h6 class="card-title">Active shipments by risk</h6>
-    <div class="chart-box"><canvas id="chartRisk"></canvas></div>
+{# Chart.js panels — expects `charts` (services/stats.py) and `stats_url`. Theme-aware + live. #}
+<div class="row g-3 g-lg-4 mb-4">
+  {% for id, title, sub in [
+    ("chartRisk", "Active shipments by risk", "Current risk level of in-transit shipments"),
+    ("chartModes", "Shipments by mode", "Road · Rail · Sea · Air"),
+    ("chartFactors", "Disruptions by factor", "Dominant signal at detection"),
+    ("chartTrend", "Disruptions — last 7 days", "Detected vs resolved"),
+  ] %}
+  <div class="col-md-6 col-xxl-3"><div class="card h-100 reveal"><div class="card-body">
+    <div class="card-title">{{ title }}</div><div class="card-sub">{{ sub }}</div>
+    <div class="chart-box"><canvas id="{{ id }}" aria-label="{{ title }}" role="img"></canvas></div>
   </div></div></div>
-  <div class="col-md-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body">
-    <h6 class="card-title">Shipments by mode</h6>
-    <div class="chart-box"><canvas id="chartModes"></canvas></div>
-  </div></div></div>
-  <div class="col-md-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body">
-    <h6 class="card-title">Disruptions by dominant factor</h6>
-    <div class="chart-box"><canvas id="chartFactors"></canvas></div>
-  </div></div></div>
-  <div class="col-md-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body">
-    <h6 class="card-title">Disruptions — last 7 days</h6>
-    <div class="chart-box"><canvas id="chartTrend"></canvas></div>
-  </div></div></div>
+  {% endfor %}
 </div>
 <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
 <script>
 (function () {
-  const RISK_COLORS = ["#198754", "#ffc107", "#fd7e14", "#dc3545"];
-  const NAVY = "#1F2A63";
-  const opts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 12 } } } };
-  const noLegend = { ...opts, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } };
   let data = {{ charts | tojson }};
+  const charts = [];
+  const RISK = ["#10b981", "#f59e0b", "#f97316", "#ef4444"];
 
-  const risk = new Chart(document.getElementById("chartRisk"), { type: "doughnut",
-    data: { labels: data.risk.labels, datasets: [{ data: data.risk.values, backgroundColor: RISK_COLORS }] }, options: opts });
-  const modes = new Chart(document.getElementById("chartModes"), { type: "bar",
-    data: { labels: data.modes.labels, datasets: [{ data: data.modes.values, backgroundColor: NAVY, borderRadius: 4 }] }, options: noLegend });
-  const factors = new Chart(document.getElementById("chartFactors"), { type: "bar",
-    data: { labels: data.factors.labels, datasets: [{ data: data.factors.values, backgroundColor: ["#0dcaf0", "#fd7e14", "#6f42c1", "#6c757d"], borderRadius: 4 }] },
-    options: { ...noLegend, indexAxis: "y", scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } } });
-  const trend = new Chart(document.getElementById("chartTrend"), { type: "line",
-    data: { labels: data.trend.labels, datasets: [
-      { label: "Detected", data: data.trend.detected, borderColor: "#dc3545", backgroundColor: "#dc354522", fill: true, tension: .3 },
-      { label: "Resolved", data: data.trend.resolved, borderColor: "#198754", backgroundColor: "#19875422", fill: true, tension: .3 } ] },
-    options: { ...opts, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
+  function palette() {
+    const dark = document.documentElement.getAttribute("data-bs-theme") === "dark";
+    return {
+      text: dark ? "#94a3b8" : "#64748b", grid: dark ? "rgba(226,232,240,.07)" : "rgba(15,23,42,.06)",
+      primary: dark ? "#818cf8" : "#6366f1", surface: dark ? "#111827" : "#ffffff",
+      factor: ["#38bdf8", "#f97316", "#a78bfa", "#94a3b8"],
+    };
+  }
+  function build() {
+    charts.forEach((c) => c.destroy()); charts.length = 0;
+    const p = palette();
+    Chart.defaults.font.family = "Inter, system-ui, sans-serif";
+    Chart.defaults.color = p.text;
+    const base = { responsive: true, maintainAspectRatio: false, animation: { duration: 900, easing: "easeOutQuart" },
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true, padding: 14 } },
+                 tooltip: { backgroundColor: "#0f172a", padding: 10, cornerRadius: 10, titleFont: { weight: "600" } } } };
+    const axes = { x: { grid: { display: false }, border: { display: false } },
+                   y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: p.grid }, border: { display: false } } };
+    const grad = (ctx, c) => { const g = ctx.createLinearGradient(0, 0, 0, 220); g.addColorStop(0, c + "55"); g.addColorStop(1, c + "00"); return g; };
 
+    charts.push(new Chart(document.getElementById("chartRisk"), { type: "doughnut",
+      data: { labels: data.risk.labels, datasets: [{ data: data.risk.values, backgroundColor: RISK, borderColor: p.surface, borderWidth: 3, hoverOffset: 8 }] },
+      options: { ...base, cutout: "68%" } }));
+    charts.push(new Chart(document.getElementById("chartModes"), { type: "bar",
+      data: { labels: data.modes.labels, datasets: [{ data: data.modes.values, backgroundColor: p.primary, borderRadius: 8, maxBarThickness: 36 }] },
+      options: { ...base, plugins: { ...base.plugins, legend: { display: false } }, scales: axes } }));
+    charts.push(new Chart(document.getElementById("chartFactors"), { type: "bar",
+      data: { labels: data.factors.labels, datasets: [{ data: data.factors.values, backgroundColor: p.factor, borderRadius: 8, maxBarThickness: 22 }] },
+      options: { ...base, indexAxis: "y", plugins: { ...base.plugins, legend: { display: false } },
+                 scales: { x: { ...axes.y }, y: { grid: { display: false }, border: { display: false } } } } }));
+    const tctx = document.getElementById("chartTrend").getContext("2d");
+    charts.push(new Chart(tctx, { type: "line",
+      data: { labels: data.trend.labels, datasets: [
+        { label: "Detected", data: data.trend.detected, borderColor: "#ef4444", backgroundColor: grad(tctx, "#ef4444"), fill: true, tension: .38, pointRadius: 3, pointHoverRadius: 6, borderWidth: 2.5 },
+        { label: "Resolved", data: data.trend.resolved, borderColor: "#10b981", backgroundColor: grad(tctx, "#10b981"), fill: true, tension: .38, pointRadius: 3, pointHoverRadius: 6, borderWidth: 2.5 } ] },
+      options: { ...base, interaction: { mode: "index", intersect: false }, scales: axes } }));
+  }
   function apply(d) {
-    risk.data.datasets[0].data = d.risk.values; risk.update();
-    modes.data.datasets[0].data = d.modes.values; modes.update();
-    factors.data.datasets[0].data = d.factors.values; factors.update();
-    trend.data.labels = d.trend.labels;
-    trend.data.datasets[0].data = d.trend.detected; trend.data.datasets[1].data = d.trend.resolved; trend.update();
-    for (const [k, v] of Object.entries(d.kpis)) {
-      document.querySelectorAll(`[data-kpi="${k}"]`).forEach((el) => (el.textContent = v));
-    }
+    data = d;
+    const [risk, modes, factors, trend] = charts;
+    risk.data.datasets[0].data = d.risk.values; modes.data.datasets[0].data = d.modes.values;
+    factors.data.datasets[0].data = d.factors.values; trend.data.labels = d.trend.labels;
+    trend.data.datasets[0].data = d.trend.detected; trend.data.datasets[1].data = d.trend.resolved;
+    charts.forEach((c) => c.update());
+    for (const [k, v] of Object.entries(d.kpis)) document.querySelectorAll(`[data-kpi="${k}"]`).forEach((el) => (el.textContent = v));
   }
   async function refresh() {
     const res = await fetch("{{ stats_url }}", { headers: { Accept: "application/json" } });
     if (res.ok) apply(await res.json());
   }
-  // main.js (which opens the socket) loads after this block, so hook up on DOMContentLoaded.
+  build();
+  document.addEventListener("cs:theme", build);
   document.addEventListener("DOMContentLoaded", () => {
     if (!window.csSocket) return;
     window.csSocket.on("shipments_updated", refresh);

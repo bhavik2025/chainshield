@@ -1,58 +1,60 @@
 {% extends "base.html" %}
-{% from "_macros.html" import risk_badge, status_badge %}
+{% from "_macros.html" import risk_badge, kpi, mode_icon %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+<div class="page-head reveal">
   <div>
-    <h4 class="mb-0">Welcome, {{ current_user.name }}</h4>
-    <small class="text-muted">{{ current_user.role|replace("_", " ")|title }} ·
-      {% if can_manage(current_user) %}operations view — all shipments{% else %}your assigned shipments{% endif %}</small>
+    <div class="eyebrow">{{ current_user.role|replace("_", " ")|title }} workspace</div>
+    <h1>Good {{ 'morning' if now_hour < 12 else ('afternoon' if now_hour < 17 else 'evening') }}, {{ current_user.name.split()[0] }}</h1>
+    <p>{% if can_manage(current_user) %}Operations view across all shipments.{% else %}Your assigned shipments, live.{% endif %}</p>
   </div>
-  <div class="d-flex gap-2">
-    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('shipments.live_map') }}">Live map</a>
-    {% if can_manage(current_user) %}<a class="btn btn-primary btn-sm" href="{{ url_for('shipments.create') }}">+ New shipment</a>{% endif %}
+  <div class="page-actions">
+    <a class="btn btn-ghost" href="{{ url_for('shipments.live_map') }}"><i class="bi bi-globe-asia-australia"></i> Live map</a>
+    {% if can_manage(current_user) %}<a class="btn btn-primary" href="{{ url_for('shipments.create') }}"><i class="bi bi-plus-lg"></i> New shipment</a>{% endif %}
   </div>
 </div>
 
-<div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
-  {% for key, label, cls in [("active", "Active shipments", ""), ("at_risk", "At risk", "text-warning"), ("open_disruptions", "Open disruptions", "text-danger"), ("delivered", "Delivered", "text-success")] %}
-  <div class="col"><div class="card h-100 border-0 shadow-sm kpi-card"><div class="card-body">
-    <div class="kpi-value {{ cls }}" data-kpi="{{ key }}">{{ charts.kpis[key] }}</div>
-    <div class="kpi-label">{{ label }}</div>
-  </div></div></div>
-  {% endfor %}
+<div class="row g-3 g-lg-4 mb-4">
+  <div class="col-6 col-lg-3">{{ kpi("bi-box-seam", charts.kpis.active, "Active shipments", count=charts.kpis.active, key="active") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("bi-activity", charts.kpis.at_risk, "At risk", "amber", count=charts.kpis.at_risk, key="at_risk") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("bi-exclamation-triangle", charts.kpis.open_disruptions, "Open disruptions", "red", count=charts.kpis.open_disruptions, key="open_disruptions") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("bi-check2-circle", charts.kpis.delivered, "Delivered", "green", count=charts.kpis.delivered, key="delivered") }}</div>
 </div>
 
 {% include "dashboard/_charts.html" %}
 
-<div class="row g-4">
-  <div class="col-lg-6"><div class="card border-0 shadow-sm h-100"><div class="card-body">
-    <h6 class="card-title">Risk watchlist</h6>
+<div class="row g-3 g-lg-4">
+  <div class="col-lg-6"><div class="card h-100 reveal"><div class="card-body">
+    <div class="card-head"><div class="card-title">Risk watchlist</div><a class="small fw-600" href="{{ url_for('shipments.index') }}">All shipments <i class="bi bi-arrow-right"></i></a></div>
     {% if watchlist %}
-    <table class="table table-sm align-middle mb-0">
+    <div class="table-responsive"><table class="table table-sm table-hover align-middle">
+      <thead><tr><th>Shipment</th><th>Route</th><th class="text-end">Risk</th></tr></thead>
+      <tbody>
       {% for s in watchlist %}
       <tr>
-        <td><a href="{{ url_for('shipments.detail', shipment_id=s.id) }}">{{ s.tracking_no }}</a></td>
-        <td class="small">{{ s.origin }} &rarr; {{ s.destination }}</td>
-        <td>{{ risk_badge(s.risk_level, s.risk_score) }}</td>
+        <td><a class="fw-600" href="{{ url_for('shipments.detail', shipment_id=s.id) }}">{{ mode_icon(s.transport_mode) }} {{ s.tracking_no }}</a></td>
+        <td class="small text-muted">{{ s.origin }} → {{ s.destination }}</td>
+        <td class="text-end">{{ risk_badge(s.risk_level, s.risk_score) }}</td>
       </tr>
       {% endfor %}
-    </table>
-    {% else %}<p class="text-muted small mb-0">No active shipments.</p>{% endif %}
+      </tbody>
+    </table></div>
+    {% else %}<div class="empty-state"><i class="bi bi-inbox"></i>No active shipments.</div>{% endif %}
   </div></div></div>
-  <div class="col-lg-6"><div class="card border-0 shadow-sm h-100"><div class="card-body">
-    <h6 class="card-title">Open disruptions needing a decision</h6>
+  <div class="col-lg-6"><div class="card h-100 reveal"><div class="card-body">
+    <div class="card-head"><div class="card-title">Open disruptions</div>
+      {% if open_disruptions %}<a class="btn btn-sm btn-outline-danger" href="{{ url_for('disruptions.index') }}">Review options <i class="bi bi-arrow-right"></i></a>{% endif %}</div>
     {% if open_disruptions %}
-    <ul class="list-unstyled mb-2">
+    <ul class="list-clean">
       {% for d in open_disruptions %}
-      <li class="d-flex justify-content-between border-bottom py-2 small">
-        <span><strong>{{ d.shipment.tracking_no }}</strong> · {{ d.type }}</span>
-        {{ risk_badge(d.severity, d.risk_score) }}
+      <li class="activity-item align-items-center">
+        <span class="ico" style="background:var(--risk-high-soft);color:var(--risk-high)"><i class="bi bi-exclamation-triangle"></i></span>
+        <span><span class="fw-600">{{ d.shipment.tracking_no }}</span> <span class="text-muted">· {{ d.type }}</span></span>
+        <span class="ms-auto">{{ risk_badge(d.severity, d.risk_score) }}</span>
       </li>
       {% endfor %}
     </ul>
-    <a class="btn btn-sm btn-outline-danger" href="{{ url_for('disruptions.index') }}">Review route options &rarr;</a>
-    {% else %}<p class="text-muted small mb-0">Nothing open — all clear.</p>{% endif %}
+    {% else %}<div class="empty-state"><i class="bi bi-shield-check"></i>Nothing open — all clear.</div>{% endif %}
   </div></div></div>
 </div>
 {% endblock %}

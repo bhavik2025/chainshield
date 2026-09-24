@@ -1,33 +1,36 @@
 {% extends "base.html" %}
 {% block title %}Notifications{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Notifications</h4>
+<div class="page-head reveal">
+  <div><div class="eyebrow">Inbox</div><h1>Notifications</h1><p>Risk alerts and route decisions that concern you.</p></div>
   {% if items|selectattr('is_read', 'equalto', false)|list %}
-  <form method="post" action="{{ url_for('notifications.mark_all_read') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="btn btn-sm btn-outline-secondary">Mark all as read</button>
-  </form>
+  <div class="page-actions">
+    <form method="post" action="{{ url_for('notifications.mark_all_read') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-ghost"><i class="bi bi-check2-all"></i> Mark all as read</button>
+    </form>
+  </div>
   {% endif %}
 </div>
-<div class="card border-0 shadow-sm"><div class="card-body p-0">
-  <ul class="list-group list-group-flush" id="notifList">
+<div class="card reveal"><div class="card-body p-2">
+  <ul class="list-clean" id="notifList">
     {% for n in items %}
-    <li class="list-group-item d-flex justify-content-between align-items-start gap-3 {% if not n.is_read %}bg-primary-subtle{% endif %}">
-      <div>
-        {% if not n.is_read %}<span class="badge bg-danger me-1">New</span>{% endif %}
-        <span class="small">{{ n.message }}</span>
-        <div class="text-muted" style="font-size:.75rem">{{ n.created_at.strftime("%d/%m/%Y %H:%M") }}</div>
+    <li class="notif-item align-items-center {% if not n.is_read %}flash-row{% endif %}" style="{% if not n.is_read %}background:var(--cs-primary-soft){% endif %}">
+      <span class="ico" {% if 'ESCALATED' in n.message or 'HIGH' in n.message %}{% elif 'instruction' in n.message %}style="background:var(--cs-accent-soft);color:var(--cs-accent)"{% else %}style="background:var(--risk-atrisk-soft);color:var(--risk-atrisk)"{% endif %}>
+        <i class="bi {{ 'bi-signpost-split' if 'instruction' in n.message else 'bi-exclamation-triangle' }}"></i></span>
+      <div class="flex-grow-1">
+        <div class="{{ 'fw-600' if not n.is_read }}">{{ n.message }}</div>
+        <div class="small text-muted">{{ n.created_at.strftime("%d %b %Y, %H:%M") }}{% if not n.is_read %} · <span style="color:var(--cs-primary)">New</span>{% endif %}</div>
       </div>
       {% if not n.is_read %}
       <form method="post" action="{{ url_for('notifications.mark_read', notification_id=n.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn btn-sm btn-link text-nowrap">Mark read</button>
+        <button class="btn btn-sm btn-ghost text-nowrap" title="Mark read"><i class="bi bi-check2"></i><span class="d-none d-md-inline"> Mark read</span></button>
       </form>
       {% endif %}
     </li>
     {% else %}
-    <li class="list-group-item text-muted small" id="notifEmpty">No notifications yet. You'll be alerted here — and with a live pop-up — when the risk engine flags one of your shipments.</li>
+    <li id="notifEmpty"><div class="empty-state"><i class="bi bi-bell-slash"></i>No notifications yet. You'll get a live pop-up when the risk engine flags one of your shipments.</div></li>
     {% endfor %}
   </ul>
 </div></div>
@@ -37,10 +40,10 @@
 document.addEventListener("cs:notification", (e) => {
   document.getElementById("notifEmpty")?.remove();
   const li = document.createElement("li");
-  li.className = "list-group-item bg-primary-subtle";
-  li.innerHTML = '<span class="badge bg-danger me-1">New</span><span class="small"></span><div class="text-muted" style="font-size:.75rem"></div>';
-  li.querySelector(".small").textContent = e.detail.message;
-  li.querySelector(".text-muted").textContent = e.detail.created_at + " · just now";
+  li.className = "notif-item align-items-center flash-row";
+  li.style.background = "var(--cs-primary-soft)";
+  li.innerHTML = '<span class="ico"><i class="bi bi-exclamation-triangle"></i></span><div class="flex-grow-1"><div class="fw-600 m"></div><div class="small text-muted">just now · <span style="color:var(--cs-primary)">New</span></div></div>';
+  li.querySelector(".m").textContent = e.detail.message;
   document.getElementById("notifList").prepend(li);
 });
 </script>

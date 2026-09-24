@@ -1,89 +1,90 @@
 {% extends "base.html" %}
-{% from "_macros.html" import risk_badge %}
+{% from "_macros.html" import risk_badge, mode_icon %}
 {% block title %}Disruptions{% endblock %}
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-  <div>
-    <h4 class="mb-0">Open Disruptions <span class="badge bg-danger">{{ open_disruptions|length }}</span></h4>
-    <small class="text-muted">Detected automatically by the risk engine. Pick a route option to resolve.</small>
-  </div>
+<div class="page-head reveal">
+  <div><div class="eyebrow">Decision centre</div>
+    <h1>Disruptions <span class="pill risk-HIGH align-middle ms-1" style="font-size:.8rem">{{ open_disruptions|length }} open</span></h1>
+    <p>Detected automatically by the risk engine. Pick a route option to resolve — the operator is notified instantly.</p></div>
   {% if can_manage(current_user) %}
-  <div class="d-flex gap-2">
+  <div class="page-actions">
     <form method="post" action="{{ url_for('disruptions.trigger_demo') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-outline-danger btn-sm" title="Simulate a severe weather event on one shipment">&#9889; Trigger demo disruption</button>
+      <button class="btn btn-outline-danger" title="Simulate a severe weather event on one shipment"><i class="bi bi-lightning-charge-fill"></i> Trigger demo disruption</button>
     </form>
     <form method="post" action="{{ url_for('disruptions.scan_now') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-outline-warning btn-sm">Run risk scan now</button>
+      <button class="btn btn-ghost"><i class="bi bi-radar"></i> Run risk scan now</button>
     </form>
   </div>
   {% endif %}
 </div>
-<div id="newDisruptionBanner" class="alert alert-warning d-none">New disruption detected — <a href="{{ url_for('disruptions.index') }}">refresh</a> to see it.</div>
+<div id="newDisruptionBanner" class="alert alert-warning d-none"><span>New disruption detected.</span> <a class="ms-2 fw-600" href="{{ url_for('disruptions.index') }}">Refresh <i class="bi bi-arrow-clockwise"></i></a></div>
 
 {% if open_disruptions %}
-<div class="row g-3 mb-4">
+<div class="row g-3 g-lg-4 mb-5">
   {% for d in open_disruptions %}
-  <div class="col-md-6" id="d{{ d.id }}">
-    <div class="card border-0 shadow-sm h-100"><div class="card-body">
-      <div class="d-flex justify-content-between align-items-start mb-2">
+  <div class="col-lg-6" id="d{{ d.id }}">
+    <div class="card disruption-card sev-{{ d.severity }} h-100 reveal"><div class="card-body">
+      <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
         <div>
-          <h6 class="mb-0"><a href="{{ url_for('shipments.detail', shipment_id=d.shipment.id) }}" class="text-decoration-none">{{ d.shipment.tracking_no }}</a></h6>
-          <small class="text-muted">{{ d.shipment.origin }} &rarr; {{ d.shipment.destination }} · {{ d.shipment.transport_mode }}</small>
+          <a class="h5 mb-0 d-inline-flex align-items-center gap-2" href="{{ url_for('shipments.detail', shipment_id=d.shipment.id) }}">{{ mode_icon(d.shipment.transport_mode) }} {{ d.shipment.tracking_no }}</a>
+          <div class="small text-muted">{{ d.shipment.origin }} → {{ d.shipment.destination }} · {{ d.shipment.transport_mode }}</div>
         </div>
         {{ risk_badge(d.severity, d.risk_score) }}
       </div>
-      <p class="small text-muted mb-2">Dominant factor: <strong>{{ d.type }}</strong> · detected {{ d.detected_at.strftime("%d/%m %H:%M") }}</p>
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <span class="tag"><i class="bi bi-cloud-lightning"></i> {{ d.type }}</span>
+        <span class="tag"><i class="bi bi-clock"></i> {{ d.detected_at.strftime("%d %b, %H:%M") }}</span>
+        {% if d.shipment.assigned_operator %}<span class="tag"><i class="bi bi-person"></i> {{ d.shipment.assigned_operator.name }}</span>{% endif %}
+      </div>
       {% if can_manage(current_user) %}
       <form method="post" action="{{ url_for('disruptions.resolve', disruption_id=d.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% for sol in d.solutions|sort(attribute='option_no') %}
-        <div class="form-check border rounded p-2 ps-4 mb-2 {% if loop.first %}border-success{% endif %}">
+        <label class="opt" for="opt-{{ d.id }}-{{ sol.option_no }}">
           <input class="form-check-input" type="radio" name="option_no" value="{{ sol.option_no }}" id="opt-{{ d.id }}-{{ sol.option_no }}" {% if loop.first %}checked{% endif %} required>
-          <label class="form-check-label small w-100" for="opt-{{ d.id }}-{{ sol.option_no }}">
-            <strong>{{ sol.description }}</strong>{% if loop.first %} <span class="badge bg-success-subtle text-success-emphasis">Recommended</span>{% endif %}<br>
-            +{{ sol.extra_time_hours }}h · +₹{{ "{:,.0f}".format(sol.extra_cost or 0) }} · residual risk {{ sol.risk_score }}
-          </label>
-        </div>
+          <div class="opt-title">{{ sol.description }}{% if loop.first %}<span class="rec-badge">Recommended</span>{% endif %}</div>
+          <div class="opt-meta">
+            <span><i class="bi bi-clock-history"></i>+{{ sol.extra_time_hours }} h</span>
+            <span><i class="bi bi-currency-rupee"></i>{{ "{:,.0f}".format(sol.extra_cost or 0) }}</span>
+            <span><i class="bi bi-shield-exclamation"></i>residual risk {{ sol.risk_score }}</span>
+          </div>
+        </label>
         {% endfor %}
-        <button type="submit" class="btn btn-primary btn-sm">Apply selected option</button>
+        <button type="submit" class="btn btn-primary mt-2"><i class="bi bi-check2-circle"></i> Apply selected option</button>
       </form>
       {% else %}
-      <p class="small mb-0">Awaiting a decision from your manager — you'll be notified of the chosen route.</p>
+      <div class="alert alert-info mb-0"><span>Awaiting a decision from your manager — you'll be notified of the chosen route.</span></div>
       {% endif %}
     </div></div>
   </div>
   {% endfor %}
 </div>
 {% else %}
-<p class="text-muted">No open disruptions right now.</p>
+<div class="card mb-5 reveal"><div class="card-body"><div class="empty-state"><i class="bi bi-shield-check" style="color:var(--risk-low)"></i><div class="fw-600" style="color:var(--cs-text)">No open disruptions</div><div class="small">Every shipment is within safe limits.</div></div></div></div>
 {% endif %}
 
-<h5 class="mb-3">Recently Resolved</h5>
-{% if resolved_disruptions %}
-<div class="card border-0 shadow-sm"><div class="card-body">
-<div class="table-responsive">
-  <table class="table table-sm mb-0">
+<div class="card reveal"><div class="card-body">
+  <div class="card-head"><div class="card-title">Recently resolved</div></div>
+  {% if resolved_disruptions %}
+  <div class="table-responsive"><table class="table align-middle">
     <thead><tr><th>Shipment</th><th>Factor</th><th>Severity</th><th>Resolved option</th><th>Resolved at</th></tr></thead>
     <tbody>
       {% for d in resolved_disruptions %}
       {% set chosen = d.solutions|selectattr('selected')|list %}
       <tr>
-        <td>{{ d.shipment.tracking_no }}</td>
-        <td>{{ d.type }}</td>
+        <td class="fw-600">{{ d.shipment.tracking_no }}</td>
+        <td><span class="tag">{{ d.type }}</span></td>
         <td>{{ risk_badge(d.severity) }}</td>
         <td class="small">{{ chosen[0].description if chosen else "Auto-closed (delivered)" }}</td>
-        <td class="text-muted small">{{ d.resolved_at.strftime("%d/%m/%Y %H:%M") if d.resolved_at else "—" }}</td>
+        <td class="text-muted small">{{ d.resolved_at.strftime("%d %b %Y, %H:%M") if d.resolved_at else "—" }}</td>
       </tr>
       {% endfor %}
     </tbody>
-  </table>
-</div>
+  </table></div>
+  {% else %}<div class="empty-state"><i class="bi bi-archive"></i>None yet.</div>{% endif %}
 </div></div>
-{% else %}
-<p class="text-muted small">None yet.</p>
-{% endif %}
 {% endblock %}
 {% block scripts %}
 <script>

@@ -1,82 +1,63 @@
 {% extends "base.html" %}
-{% from "_macros.html" import risk_badge, status_badge %}
+{% from "_macros.html" import risk_badge, status_badge, kpi %}
 {% block title %}Reports{% endblock %}
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
-  <div>
-    <h4 class="mb-0">Reports</h4>
-    <small class="text-muted">On-screen summaries with CSV export (opens in Excel).</small>
-  </div>
-  <form class="d-flex flex-wrap gap-2 align-items-end" method="get">
-    <div><label class="form-label small mb-0">From</label><input type="date" name="from" value="{{ start.isoformat() }}" class="form-control form-control-sm"></div>
-    <div><label class="form-label small mb-0">To</label><input type="date" name="to" value="{{ end.isoformat() }}" class="form-control form-control-sm"></div>
-    <button class="btn btn-sm btn-outline-primary">Apply</button>
+{% set q = "?from=" ~ start.isoformat() ~ "&to=" ~ end.isoformat() %}
+<div class="page-head reveal">
+  <div><div class="eyebrow">Insights</div><h1>Reports</h1><p>On-screen summaries with CSV export that opens straight in Excel.</p></div>
+  <form class="page-actions" method="get">
+    <div><label class="form-label small mb-1">From</label><input type="date" name="from" value="{{ start.isoformat() }}" class="form-control form-control-sm"></div>
+    <div><label class="form-label small mb-1">To</label><input type="date" name="to" value="{{ end.isoformat() }}" class="form-control form-control-sm"></div>
+    <button class="btn btn-sm btn-primary align-self-end"><i class="bi bi-funnel"></i> Apply</button>
   </form>
 </div>
-{% set q = "?from=" ~ start.isoformat() ~ "&to=" ~ end.isoformat() %}
 
-<div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
-  <div class="col"><div class="card border-0 shadow-sm kpi-card h-100"><div class="card-body"><div class="kpi-value">{{ disruptions|length }}</div><div class="kpi-label">Disruptions in range</div></div></div></div>
-  <div class="col"><div class="card border-0 shadow-sm kpi-card h-100"><div class="card-body"><div class="kpi-value text-danger">{{ open_count }}</div><div class="kpi-label">Still open</div></div></div></div>
-  <div class="col"><div class="card border-0 shadow-sm kpi-card h-100"><div class="card-body"><div class="kpi-value">{{ avg_resolution if avg_resolution is not none else "—" }}{% if avg_resolution is not none %}<small class="fs-6"> h</small>{% endif %}</div><div class="kpi-label">Avg. resolution time</div></div></div></div>
-  <div class="col"><div class="card border-0 shadow-sm kpi-card h-100"><div class="card-body"><div class="kpi-value">{{ shipments|selectattr('risk_level', 'in', ['AT-RISK','MEDIUM','HIGH'])|list|length }}</div><div class="kpi-label">Shipments at risk now</div></div></div></div>
+<div class="row g-3 g-lg-4 mb-4">
+  <div class="col-6 col-lg-3">{{ kpi("bi-exclamation-diamond", disruptions|length, "Disruptions in range", count=disruptions|length) }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("bi-hourglass-split", open_count, "Still open", "red", count=open_count) }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("bi-stopwatch", (avg_resolution ~ " h") if avg_resolution is not none else "—", "Avg. resolution time", "teal") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("bi-activity", shipments|selectattr('risk_level', 'in', ['AT-RISK','MEDIUM','HIGH'])|list|length, "Shipments at risk now", "amber") }}</div>
 </div>
 
-<div class="row g-4 mb-4">
-  <div class="col-lg-4"><div class="card border-0 shadow-sm h-100"><div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h6 class="card-title mb-0">1. Disruption Summary</h6>
-      <a class="btn btn-sm btn-outline-success" href="{{ url_for('main.report_csv', kind='disruptions') }}{{ q }}">CSV</a>
-    </div>
-    <table class="table table-sm mb-2">
-      <thead><tr><th>Dominant factor</th><th class="text-end">Count</th></tr></thead>
-      {% for k, v in by_type|dictsort %}<tr><td>{{ k }}</td><td class="text-end">{{ v }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted small">None in range</td></tr>{% endfor %}
-    </table>
-    <table class="table table-sm mb-0">
-      <thead><tr><th>Severity</th><th class="text-end">Count</th></tr></thead>
-      {% for k, v in by_severity|dictsort %}<tr><td>{{ risk_badge(k) }}</td><td class="text-end">{{ v }}</td></tr>{% endfor %}
-    </table>
+<div class="row g-3 g-lg-4 mb-4">
+  <div class="col-lg-4"><div class="card h-100 reveal"><div class="card-body">
+    <div class="card-head"><div class="card-title">1 · Disruption summary</div>
+      <a class="btn btn-sm btn-outline-success" href="{{ url_for('main.report_csv', kind='disruptions') }}{{ q }}"><i class="bi bi-filetype-csv"></i> CSV</a></div>
+    <table class="table table-sm mb-3"><thead><tr><th>Dominant factor</th><th class="text-end">Count</th></tr></thead>
+      <tbody>{% for k, v in by_type|dictsort %}<tr><td>{{ k }}</td><td class="text-end fw-600">{{ v }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted small">None in range</td></tr>{% endfor %}</tbody></table>
+    <table class="table table-sm"><thead><tr><th>Severity</th><th class="text-end">Count</th></tr></thead>
+      <tbody>{% for k, v in by_severity|dictsort %}<tr><td>{{ risk_badge(k) }}</td><td class="text-end fw-600">{{ v }}</td></tr>{% endfor %}</tbody></table>
   </div></div></div>
-
-  <div class="col-lg-4"><div class="card border-0 shadow-sm h-100"><div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h6 class="card-title mb-0">2. Resolution Time by Decision-maker</h6>
-    </div>
-    <p class="small text-muted">Time from detection to a route decision.</p>
-    <table class="table table-sm mb-0">
-      <thead><tr><th>Resolved by</th><th class="text-end">Count</th><th class="text-end">Avg (h)</th></tr></thead>
-      {% for r in responders %}<tr><td>{{ r.name }} <span class="text-muted small">({{ r.role }})</span></td><td class="text-end">{{ r.count }}</td><td class="text-end">{{ r.avg }}</td></tr>
-      {% else %}<tr><td colspan="3" class="text-muted small">No manual resolutions in range</td></tr>{% endfor %}
-    </table>
+  <div class="col-lg-4"><div class="card h-100 reveal"><div class="card-body">
+    <div class="card-title">2 · Resolution Time by Decision-maker</div>
+    <div class="card-sub mt-1">Time from detection to a route decision.</div>
+    <table class="table table-sm"><thead><tr><th>Resolved by</th><th class="text-end">Count</th><th class="text-end">Avg (h)</th></tr></thead>
+      <tbody>{% for r in responders %}<tr><td>{{ r.name }} <span class="text-muted small">· {{ r.role }}</span></td><td class="text-end">{{ r.count }}</td><td class="text-end fw-600">{{ r.avg }}</td></tr>
+      {% else %}<tr><td colspan="3" class="text-muted small">No manual resolutions in range</td></tr>{% endfor %}</tbody></table>
   </div></div></div>
-
-  <div class="col-lg-4"><div class="card border-0 shadow-sm h-100"><div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h6 class="card-title mb-0">3. Activity Audit Log</h6>
-      <a class="btn btn-sm btn-outline-success" href="{{ url_for('main.report_csv', kind='activity-log') }}{{ q }}">CSV</a>
-    </div>
-    <ul class="list-unstyled small mb-0" style="max-height: 260px; overflow-y: auto;">
-      {% for l in logs[:25] %}<li class="border-bottom py-1"><span class="text-muted">{{ l.timestamp.strftime("%d/%m %H:%M") }}</span> · {{ l.action }}</li>
-      {% else %}<li class="text-muted">No activity in range</li>{% endfor %}
+  <div class="col-lg-4"><div class="card h-100 reveal"><div class="card-body">
+    <div class="card-head"><div class="card-title">3 · Activity audit log</div>
+      <a class="btn btn-sm btn-outline-success" href="{{ url_for('main.report_csv', kind='activity-log') }}{{ q }}"><i class="bi bi-filetype-csv"></i> CSV</a></div>
+    <ul class="list-clean" style="max-height: 290px; overflow-y: auto;">
+      {% for l in logs[:25] %}<li class="activity-item"><span class="ico"><i class="bi bi-clock-history"></i></span><span>{{ l.action }}</span><span class="when">{{ l.timestamp.strftime("%d %b %H:%M") }}</span></li>
+      {% else %}<li class="text-muted small">No activity in range</li>{% endfor %}
     </ul>
-    {% if logs|length > 25 %}<div class="small text-muted mt-1">+{{ logs|length - 25 }} more in the CSV</div>{% endif %}
+    {% if logs|length > 25 %}<div class="small text-muted mt-2">+{{ logs|length - 25 }} more in the CSV</div>{% endif %}
   </div></div></div>
 </div>
 
-<div class="card border-0 shadow-sm"><div class="card-body">
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <h6 class="card-title mb-0">4. Shipment Risk Report <span class="text-muted small fw-normal">(current)</span></h6>
-    <a class="btn btn-sm btn-outline-success" href="{{ url_for('main.report_csv', kind='shipment-risk') }}">CSV</a>
-  </div>
-  <div class="table-responsive">
-    <table class="table table-sm align-middle mb-0">
-      <thead><tr><th>Tracking</th><th>Route</th><th>Mode</th><th>Cargo</th><th>Status</th><th>Risk</th><th class="text-end">Value</th></tr></thead>
-      {% for s in shipments %}
-      <tr><td>{{ s.tracking_no }}</td><td class="small">{{ s.origin }} &rarr; {{ s.destination }}</td><td>{{ s.transport_mode }}</td>
-        <td>{{ s.cargo_type.name if s.cargo_type else "—" }}</td><td>{{ status_badge(s.status) }}</td><td>{{ risk_badge(s.risk_level, s.risk_score) }}</td>
-        <td class="text-end">₹{{ "{:,.0f}".format(s.cargo_value or 0) }}</td></tr>
-      {% endfor %}
-    </table>
-  </div>
+<div class="card reveal"><div class="card-body">
+  <div class="card-head"><div class="card-title">4 · Shipment risk report <span class="text-muted small fw-normal">(current)</span></div>
+    <a class="btn btn-sm btn-outline-success" href="{{ url_for('main.report_csv', kind='shipment-risk') }}"><i class="bi bi-filetype-csv"></i> CSV</a></div>
+  <div class="table-responsive"><table class="table align-middle">
+    <thead><tr><th>Tracking</th><th>Route</th><th>Mode</th><th>Cargo</th><th>Status</th><th>Risk</th><th class="text-end">Value</th></tr></thead>
+    <tbody>
+    {% for s in shipments %}
+    <tr><td class="fw-600">{{ s.tracking_no }}</td><td class="small">{{ s.origin }} → {{ s.destination }}</td><td>{{ s.transport_mode }}</td>
+      <td class="text-muted">{{ s.cargo_type.name if s.cargo_type else "—" }}</td><td>{{ status_badge(s.status) }}</td><td>{{ risk_badge(s.risk_level, s.risk_score) }}</td>
+      <td class="text-end mono">₹{{ "{:,.0f}".format(s.cargo_value or 0) }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
 </div></div>
 {% endblock %}

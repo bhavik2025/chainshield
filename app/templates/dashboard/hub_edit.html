@@ -1,17 +1,17 @@
 {% extends "dashboard/_layout.html" %}
 {% block title %}Dashboard · Edit Hub{% endblock %}
 {% block dashboard_content %}
-<div class="row justify-content-center"><div class="col-md-6"><div class="card border-0 shadow-sm"><div class="card-body">
-  <h6 class="card-title mb-3">Edit {{ hub.name }}</h6>
+<div class="row justify-content-center"><div class="col-md-6"><div class="card reveal"><div class="card-body p-4">
+  <div class="card-title mb-3"><i class="bi bi-geo-alt me-1 text-primary"></i> Edit {{ hub.name }}</div>
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="mb-2"><label class="form-label small">Name</label><input name="name" value="{{ hub.name }}" class="form-control" required></div>
-    <div class="mb-2"><label class="form-label small">Location</label><input name="location" value="{{ hub.location or '' }}" class="form-control"></div>
+    <div class="mb-2"><label class="form-label">Name</label><input name="name" value="{{ hub.name }}" class="form-control" required></div>
+    <div class="mb-2"><label class="form-label">Location</label><input name="location" value="{{ hub.location or '' }}" class="form-control"></div>
     <div class="row g-2 mb-3">
-      <div class="col"><label class="form-label small">Lat</label><input type="number" step="any" name="lat" value="{{ hub.lat if hub.lat is not none }}" class="form-control"></div>
-      <div class="col"><label class="form-label small">Lng</label><input type="number" step="any" name="lng" value="{{ hub.lng if hub.lng is not none }}" class="form-control"></div>
+      <div class="col"><label class="form-label">Lat</label><input type="number" step="any" name="lat" value="{{ hub.lat if hub.lat is not none }}" class="form-control"></div>
+      <div class="col"><label class="form-label">Lng</label><input type="number" step="any" name="lng" value="{{ hub.lng if hub.lng is not none }}" class="form-control"></div>
     </div>
-    <div class="d-flex gap-2"><button class="btn btn-primary">Save hub</button><a href="{{ url_for('main.dashboard_hubs') }}" class="btn btn-outline-secondary">Cancel</a></div>
+    <div class="d-flex gap-2"><button class="btn btn-primary"><i class="bi bi-check2"></i> Save hub</button><a href="{{ url_for('main.dashboard_hubs') }}" class="btn btn-ghost">Cancel</a></div>
   </form>
 </div></div></div></div>
 {% endblock %}

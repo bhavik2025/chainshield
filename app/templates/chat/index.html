@@ -1,46 +1,48 @@
 {% extends "base.html" %}
-{% block title %}Chat{% endblock %}
+{% block title %}Team Chat{% endblock %}
 {% block content %}
-<h4 class="mb-3">Team Chat</h4>
-<div class="card border-0 shadow-sm chat-shell"><div class="row g-0 h-100">
-  <div class="col-md-4 border-end chat-contacts h-100 {% if peer %}d-none d-md-block{% endif %}">
-    <div class="list-group list-group-flush">
-      {% for u in contacts %}
-      {% set lm = last.get(u.id) %}
-      <a href="{{ url_for('chat.conversation', user_id=u.id) }}" class="list-group-item list-group-item-action {% if peer and peer.id == u.id %}active{% endif %}" data-contact="{{ u.id }}">
-        <div class="d-flex justify-content-between">
-          <strong class="small">{{ u.name }}</strong>
-          <span class="badge rounded-pill bg-danger d-none" data-unread="{{ u.id }}">new</span>
-        </div>
-        <div class="small {% if peer and peer.id == u.id %}text-white-50{% else %}text-muted{% endif %} text-truncate" data-preview="{{ u.id }}">
-          {{ (lm.content if lm else u.role|replace("_", " ")|title) }}
-        </div>
-      </a>
-      {% else %}
-      <div class="p-3 text-muted small">No other users yet.</div>
-      {% endfor %}
+<div class="page-head reveal">
+  <div><div class="eyebrow">Collaborate</div><h1>Team chat</h1><p>Direct messages, delivered instantly.</p></div>
+</div>
+<div class="card chat-shell reveal"><div class="row g-0 h-100">
+  <div class="col-md-4 col-xl-3 chat-contacts h-100 {% if peer %}d-none d-md-block{% endif %}">
+    <div class="p-3 border-bottom" style="border-color:var(--cs-border)!important">
+      <div class="input-icon"><i class="bi bi-search"></i><input class="form-control form-control-sm" placeholder="Search people" oninput="const q=this.value.toLowerCase();document.querySelectorAll('[data-contact]').forEach(a=>a.style.display=a.textContent.toLowerCase().includes(q)?'':'none')"></div>
     </div>
+    {% for u in contacts %}
+    {% set lm = last.get(u.id) %}
+    <a href="{{ url_for('chat.conversation', user_id=u.id) }}" class="contact {% if peer and peer.id == u.id %}active{% endif %}" data-contact="{{ u.id }}">
+      <span class="avatar sm">{{ (u.name.split()|map('first')|join|upper)[:2] }}</span>
+      <span class="meta">
+        <span class="d-flex justify-content-between align-items-center"><span class="fw-600 small">{{ u.name }}</span><span class="dot-new d-none pill risk-HIGH nodot" style="font-size:.62rem" data-unread="{{ u.id }}">new</span></span>
+        <span class="preview d-block" data-preview="{{ u.id }}">{{ lm.content if lm else u.role|replace("_", " ")|title }}</span>
+      </span>
+    </a>
+    {% else %}
+    <div class="empty-state"><i class="bi bi-people"></i>No other users yet.</div>
+    {% endfor %}
   </div>
-  <div class="col-md-8 d-flex flex-column h-100">
+  <div class="col-md-8 col-xl-9 d-flex flex-column h-100">
     {% if peer %}
-    <div class="border-bottom p-3 d-flex align-items-center gap-2">
-      <a href="{{ url_for('chat.index') }}" class="d-md-none text-decoration-none">&larr;</a>
-      <div><strong>{{ peer.name }}</strong> <span class="text-muted small">· {{ peer.role|replace("_", " ")|title }}</span></div>
+    <div class="p-3 d-flex align-items-center gap-3 border-bottom" style="border-color:var(--cs-border)!important">
+      <a href="{{ url_for('chat.index') }}" class="icon-btn d-md-none"><i class="bi bi-arrow-left"></i></a>
+      <span class="avatar sm">{{ (peer.name.split()|map('first')|join|upper)[:2] }}</span>
+      <div><div class="fw-600">{{ peer.name }}</div><div class="small text-muted text-capitalize">{{ peer.role|replace("_", " ") }}</div></div>
     </div>
-    <div class="chat-messages flex-grow-1 p-3" id="chatMessages">
+    <div class="chat-messages flex-grow-1 p-3 p-md-4" id="chatMessages">
       {% for m in messages %}
-      <div class="chat-bubble {{ 'mine' if m.sender_id == current_user.id else 'theirs' }}">{{ m.content }}<div class="meta">{{ m.sent_at.strftime("%d/%m %H:%M") }}</div></div>
+      <div class="chat-bubble {{ 'mine' if m.sender_id == current_user.id else 'theirs' }}">{{ m.content }}<div class="meta">{{ m.sent_at.strftime("%d %b, %H:%M") }}</div></div>
       {% else %}
-      <p class="text-muted small text-center mt-5" id="chatEmpty">Start the conversation with {{ peer.name }}.</p>
+      <div class="empty-state mt-5" id="chatEmpty"><i class="bi bi-chat-heart"></i>Start the conversation with {{ peer.name }}.</div>
       {% endfor %}
     </div>
-    <form class="border-top p-2 d-flex gap-2" id="chatForm" autocomplete="off">
-      <input class="form-control" id="chatInput" placeholder="Type a message…" maxlength="2000" required>
-      <button class="btn btn-primary" type="submit">Send</button>
+    <form class="chat-compose p-2 p-md-3 d-flex gap-2" id="chatForm" autocomplete="off" data-no-loading>
+      <input class="form-control" id="chatInput" placeholder="Write a message…" maxlength="2000" required>
+      <button class="btn btn-primary px-3" type="submit" aria-label="Send"><i class="bi bi-send-fill"></i><span class="d-none d-sm-inline">Send</span></button>
     </form>
     {% else %}
-    <div class="d-flex flex-grow-1 align-items-center justify-content-center text-muted p-4 text-center">
-      Pick a colleague on the left to start chatting. Messages are delivered instantly over Socket.IO.
+    <div class="d-flex flex-grow-1 align-items-center justify-content-center p-4">
+      <div class="empty-state"><i class="bi bi-chat-dots"></i><div class="fw-600" style="color:var(--cs-text)">Select a conversation</div><div class="small">Pick a colleague on the left. Messages arrive in real time over Socket.IO.</div></div>
     </div>
     {% endif %}
   </div>
@@ -53,8 +55,8 @@
   const peer = {{ peer.id if peer else "null" }};
   window.csChatPeer = peer;
   const box = document.getElementById("chatMessages");
-  const scroll = () => box && (box.scrollTop = box.scrollHeight);
-  scroll();
+  const scroll = () => box && box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
+  if (box) box.scrollTop = box.scrollHeight;
 
   function bubble(m) {
     document.getElementById("chatEmpty")?.remove();
@@ -63,10 +65,8 @@
     d.textContent = m.content;
     const meta = document.createElement("div");
     meta.className = "meta"; meta.textContent = m.sent_at;
-    d.appendChild(meta);
-    box.appendChild(d); scroll();
+    d.appendChild(meta); box.appendChild(d); scroll();
   }
-
   const seen = new Set();
   if (window.csSocket) {
     window.csSocket.on("chat_message", (m) => {
@@ -78,7 +78,6 @@
       else if (m.sender_id !== me) document.querySelector(`[data-unread="${other}"]`)?.classList.remove("d-none");
     });
   }
-
   const form = document.getElementById("chatForm");
   if (form) form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -89,10 +88,8 @@
     try {
       const m = await window.csPost(`{{ url_for('chat.index') }}${peer}/send`, { content });
       if (!seen.has(m.id)) { seen.add(m.id); bubble(m); }
-    } catch (err) {
-      input.value = content;
-      window.csToast(err.message, "danger");
-    }
+    } catch (err) { input.value = content; window.csToast(err.message, "danger"); }
+    input.focus();
   });
 })();
 </script>

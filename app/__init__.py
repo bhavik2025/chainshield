@@ -29,6 +29,18 @@ def create_app(config_name=None):
         except Exception:  # table doesn't exist yet (before `flask init-db`)
             db.session.rollback()
 
+    from flask import render_template
+
+    @app.errorhandler(403)
+    def forbidden(_e):
+        return render_template("error.html", code=403, title="You don't have access to this page",
+                               message="Your role doesn't include this area. Ask an admin if you need access."), 403
+
+    @app.errorhandler(404)
+    def not_found(_e):
+        return render_template("error.html", code=404, title="Page not found",
+                               message="The page or record you're looking for doesn't exist or isn't visible to you."), 404
+
     @app.get("/health")
     def health_check():
         return {"status": "ok", "service": "chainshield-mca"}, 200
@@ -63,10 +75,22 @@ def register_extensions(app):
         from flask_login import current_user
         from app.models import Notification
 
-        unread = 0
+        from app.models import Disruption, Shipment
+
+        unread = open_count = 0
         if current_user.is_authenticated:
             unread = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
-        return {"unread_notifications": unread, "can_manage": _can_manage}
+            q = Disruption.query.filter(Disruption.status == "Open")
+            if current_user.role in ("captain", "pilot", "driver", "loco_pilot"):
+                q = q.join(Shipment, Disruption.shipment_id == Shipment.id).filter(
+                    Shipment.assigned_operator_id == current_user.id)
+            open_count = q.count()
+        from datetime import datetime, timedelta
+
+        # Greeting hour in IST (the app's users are in India; the container runs in UTC).
+        now_hour = (datetime.utcnow() + timedelta(hours=5, minutes=30)).hour
+        return {"unread_notifications": unread, "open_disruption_count": open_count, "can_manage": _can_manage,
+                "now_hour": now_hour}
 
     _start_scheduler(app)
 

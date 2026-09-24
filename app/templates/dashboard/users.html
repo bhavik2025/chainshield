@@ -1,18 +1,18 @@
 {% extends "dashboard/_layout.html" %}
 {% block title %}Dashboard · Users{% endblock %}
 {% block dashboard_content %}
-<div class="row g-4">
-  <div class="col-lg-8"><div class="card border-0 shadow-sm"><div class="card-body">
-    <h6 class="card-title mb-3">Users</h6>
+<div class="row g-3 g-lg-4">
+  <div class="col-xl-8"><div class="card reveal"><div class="card-body">
+    <div class="card-head"><div class="card-title">Users <span class="tag ms-1">{{ users|length }}</span></div><div class="input-icon"><i class="bi bi-search"></i><input class="form-control form-control-sm" placeholder="Filter users…" data-filter="#usersTable"></div></div>
     <div class="table-responsive">
-      <table class="table table-sm align-middle">
+      <table class="table align-middle" id="usersTable">
         <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Joined</th><th class="text-end">Role / Access</th></tr></thead>
         <tbody>
           {% for user in users %}
           <tr class="{{ 'text-muted' if not user.is_active }}">
-            <td>{{ user.name }}{% if user.id == current_user.id %} <span class="badge bg-info-subtle text-info-emphasis">you</span>{% endif %}</td>
+            <td><div class="d-flex align-items-center gap-2"><span class="avatar sm">{{ (user.name.split()|map('first')|join|upper)[:2] }}</span><span class="fw-600">{{ user.name }}</span>{% if user.id == current_user.id %}<span class="tag">you</span>{% endif %}</div></td>
             <td class="small">{{ user.email }}</td>
-            <td>{% if user.is_active %}<span class="badge bg-success-subtle text-success-emphasis">Active</span>{% else %}<span class="badge bg-secondary">Deactivated</span>{% endif %}</td>
+            <td>{% if user.is_active %}<span class="pill risk-LOW">Active</span>{% else %}<span class="pill status-pill">Deactivated</span>{% endif %}</td>
             <td class="text-muted small">{{ user.created_at.strftime("%d/%m/%Y") if user.created_at else "—" }}</td>
             <td class="text-end">
               <div class="d-flex gap-2 justify-content-end">
@@ -23,12 +23,12 @@
                     <option value="{{ role }}" {% if role == user.role %}selected{% endif %}>{{ role }}</option>
                     {% endfor %}
                   </select>
-                  <button type="submit" class="btn btn-outline-primary btn-sm">Save</button>
+                  <button type="submit" class="btn btn-soft btn-sm" title="Save role"><i class="bi bi-check2"></i></button>
                 </form>
                 {% if user.id != current_user.id %}
                 <form method="post" action="{{ url_for('main.toggle_user_active', user_id=user.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-sm {{ 'btn-outline-danger' if user.is_active else 'btn-outline-success' }} text-nowrap">{{ "Deactivate" if user.is_active else "Activate" }}</button>
+                  <button type="submit" class="btn btn-sm {{ 'btn-outline-danger' if user.is_active else 'btn-outline-success' }} text-nowrap"><i class="bi {{ 'bi-person-dash' if user.is_active else 'bi-person-check' }}"></i> {{ "Deactivate" if user.is_active else "Activate" }}</button>
                 </form>
                 {% endif %}
               </div>
@@ -39,17 +39,17 @@
       </table>
     </div>
   </div></div></div>
-  <div class="col-lg-4"><div class="card border-0 shadow-sm"><div class="card-body">
-    <h6 class="card-title mb-3">Add a user</h6>
+  <div class="col-xl-4"><div class="card reveal"><div class="card-body">
+    <div class="card-title mb-3"><i class="bi bi-person-plus me-1 text-primary"></i> Add a user</div>
     <form method="post" action="{{ url_for('main.create_user') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="mb-2"><label class="form-label small">Full name</label><input name="name" class="form-control form-control-sm" required></div>
-      <div class="mb-2"><label class="form-label small">Email</label><input type="email" name="email" class="form-control form-control-sm" required></div>
-      <div class="mb-2"><label class="form-label small">Phone</label><input name="phone" class="form-control form-control-sm"></div>
-      <div class="mb-2"><label class="form-label small">Role</label>
+      <div class="mb-2"><label class="form-label">Full name</label><input name="name" class="form-control form-control-sm" required></div>
+      <div class="mb-2"><label class="form-label">Email</label><input type="email" name="email" class="form-control form-control-sm" required></div>
+      <div class="mb-2"><label class="form-label">Phone</label><input name="phone" class="form-control form-control-sm"></div>
+      <div class="mb-2"><label class="form-label">Role</label>
         <select name="role" class="form-select form-select-sm">{% for role in roles %}<option value="{{ role }}" {% if role == 'manager' %}selected{% endif %}>{{ role }}</option>{% endfor %}</select></div>
-      <div class="mb-3"><label class="form-label small">Temporary password</label><input type="password" name="password" minlength="6" class="form-control form-control-sm" required></div>
-      <button class="btn btn-primary btn-sm w-100">Create user</button>
+      <div class="mb-3"><label class="form-label">Temporary password</label><input type="password" name="password" minlength="6" class="form-control form-control-sm" required></div>
+      <button class="btn btn-primary w-100"><i class="bi bi-plus-lg"></i> Create user</button>
     </form>
   </div></div></div>
 </div>

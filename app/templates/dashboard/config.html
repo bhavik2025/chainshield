@@ -1,24 +1,34 @@
 {% extends "dashboard/_layout.html" %}
-{% block title %}Dashboard · System Config{% endblock %}
+{% block title %}Admin · System Config{% endblock %}
 {% block dashboard_content %}
-<div class="row g-4">
-  <div class="col-md-6"><div class="card border-0 shadow-sm"><div class="card-body">
-    <h6 class="card-title mb-3">Risk Engine Weights</h6>
-    <table class="table table-sm mb-0">
-      {% for factor, weight in risk_weights.items() %}
-      <tr><td>{{ factor }}</td><td class="text-end">{{ (weight * 100) | round(0) }}%</td></tr>
-      {% endfor %}
-    </table>
-    <p class="text-muted small mt-2 mb-0">Scan interval: every {{ scan_interval }}s</p>
+<div class="row g-3 g-lg-4">
+  <div class="col-lg-6"><div class="card h-100 reveal"><div class="card-body">
+    <div class="card-title">Risk engine weights</div>
+    <div class="card-sub mt-1">Composite score = Σ weight × signal (0–100) · scan every {{ scan_interval }}s</div>
+    {% set colors = {"Weather": "#38bdf8", "Congestion": "#f97316", "Cargo": "#a78bfa", "History": "#94a3b8"} %}
+    {% for factor, weight in risk_weights.items() %}
+    <div class="d-flex justify-content-between small mt-3 mb-1"><span class="fw-600">{{ factor }}</span><span class="fw-bold">{{ (weight * 100) | round(0) | int }}%</span></div>
+    <div class="progress" style="height:8px"><div class="progress-bar" data-width="{{ weight * 100 * 2.2 }}" style="width:0; background: {{ colors[factor] }}"></div></div>
+    {% endfor %}
+    <div class="d-flex flex-wrap gap-2 mt-4">
+      <span class="pill risk-HIGH">HIGH ≥ 70</span><span class="pill risk-MEDIUM">MEDIUM ≥ 50</span><span class="pill risk-AT-RISK">AT-RISK ≥ 30</span><span class="pill risk-LOW">LOW &lt; 30</span>
+    </div>
   </div></div></div>
-  <div class="col-md-6"><div class="card border-0 shadow-sm"><div class="card-body">
-    <h6 class="card-title mb-3">Integrations</h6>
-    <table class="table table-sm mb-0">
-      <tr><td>OpenWeatherMap API</td><td class="text-end"><span class="badge {% if weather_key_set %}bg-success{% else %}bg-secondary{% endif %}">{{ "Configured" if weather_key_set else "Not set (simulated)" }}</span></td></tr>
-      <tr><td>Gemini AI Assistant</td><td class="text-end"><span class="badge {% if gemini_key_set %}bg-success{% else %}bg-secondary{% endif %}">{{ "Configured" if gemini_key_set else "Not set" }}</span></td></tr>
-      <tr><td>Socket.IO async mode</td><td class="text-end"><span class="badge bg-info text-dark">{{ socketio_async_mode }}</span></td></tr>
-      <tr><td>Mode</td><td class="text-end"><span class="badge bg-dark">{{ "Debug" if debug else "Production" }}</span></td></tr>
-    </table>
+  <div class="col-lg-6"><div class="card h-100 reveal"><div class="card-body">
+    <div class="card-title mb-3">Integrations & runtime</div>
+    {% for icon, label, ok, text in [
+      ("bi-cloud-sun", "OpenWeatherMap API", weather_key_set, "Configured" if weather_key_set else "Simulated signal"),
+      ("bi-stars", "Gemini AI assistant", gemini_key_set, "Configured" if gemini_key_set else "Offline engine"),
+      ("bi-broadcast", "Socket.IO async mode", true, socketio_async_mode),
+      ("bi-hdd-rack", "Mode", not debug, "Debug" if debug else "Production"),
+    ] %}
+    <div class="activity-item align-items-center">
+      <span class="ico" {% if not ok %}style="background:var(--cs-surface-2);color:var(--cs-muted)"{% endif %}><i class="bi {{ icon }}"></i></span>
+      <span class="fw-600">{{ label }}</span>
+      <span class="ms-auto pill {{ 'risk-LOW' if ok else 'status-pill' }}">{{ text }}</span>
+    </div>
+    {% endfor %}
   </div></div></div>
 </div>
 {% endblock %}
+{% block scripts %}<script>document.querySelectorAll(".progress-bar[data-width]").forEach((b) => setTimeout(() => (b.style.width = b.dataset.width + "%"), 250));</script>{% endblock %}

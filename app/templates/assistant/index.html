@@ -1,26 +1,25 @@
 {% extends "base.html" %}
 {% block title %}AI Assistant{% endblock %}
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-  <div>
-    <h4 class="mb-0">AI Assistant</h4>
-    <small class="text-muted">Ask about live shipments, risks and route decisions.</small>
+<div class="page-head reveal">
+  <div><div class="eyebrow">Copilot</div><h1>AI assistant</h1><p>Ask about live shipments, risks and route decisions in plain English.</p></div>
+  <div class="page-actions">
+    <span class="pill {{ 'risk-LOW' if gemini_enabled else 'status-pill' }}"><i class="bi {{ 'bi-stars' if gemini_enabled else 'bi-cpu' }}"></i> {{ "Powered by Google Gemini" if gemini_enabled else "Offline engine" }}</span>
   </div>
-  <span class="badge {{ 'bg-success' if gemini_enabled else 'bg-secondary' }}">{{ "Powered by Google Gemini" if gemini_enabled else "Offline engine (set GEMINI_API_KEY for Gemini)" }}</span>
 </div>
-<div class="card border-0 shadow-sm"><div class="card-body p-0 d-flex flex-column">
-  <div class="assistant-log p-3" id="log">
-    <div class="assistant-msg bot">Hi {{ current_user.name.split(' ')[0] }} — I can see the live shipment and disruption data{% if current_user.role in ['captain','pilot','driver','loco_pilot'] %} for your assigned shipments{% endif %}. What do you need?</div>
+<div class="card reveal overflow-hidden"><div class="card-body p-0 d-flex flex-column">
+  <div class="assistant-log p-3 p-md-4" id="log">
+    <div class="assistant-msg bot"><span class="who"><i class="bi bi-stars"></i></span><div><div class="body">Hi {{ current_user.name.split(' ')[0] }} 👋 I can see the live shipment and disruption data{% if current_user.role in ['captain','pilot','driver','loco_pilot'] %} for your assigned shipments{% endif %}. What would you like to know?</div></div></div>
   </div>
-  <div class="border-top p-2">
-    <div class="d-flex flex-wrap gap-1 mb-2" id="suggestions">
-      {% for s in ["Give me a summary", "Which shipments are high risk?", "What should I do about open disruptions?", "How is the risk score calculated?", "How much cargo value is at risk?"] %}
-      <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill">{{ s }}</button>
+  <div class="p-3 border-top" style="border-color:var(--cs-border)!important">
+    <div class="d-flex flex-wrap gap-2 mb-3" id="suggestions">
+      {% for icon, s in [("bi-clipboard-data", "Give me a summary"), ("bi-exclamation-triangle", "Which shipments are high risk?"), ("bi-signpost-split", "What should I do about open disruptions?"), ("bi-calculator", "How is the risk score calculated?"), ("bi-currency-rupee", "How much cargo value is at risk?")] %}
+      <button type="button" class="chip-btn" data-q="{{ s }}"><i class="bi {{ icon }} me-1"></i>{{ s }}</button>
       {% endfor %}
     </div>
-    <form class="d-flex gap-2" id="askForm" autocomplete="off">
-      <input class="form-control" id="question" placeholder="Ask anything… e.g. Tell me about CS-1003" maxlength="1000" required>
-      <button class="btn btn-primary" id="askBtn" type="submit">Ask</button>
+    <form class="d-flex gap-2" id="askForm" autocomplete="off" data-no-loading>
+      <div class="input-icon flex-grow-1"><i class="bi bi-chat-square-text"></i><input class="form-control" id="question" placeholder="Ask anything… e.g. Tell me about CS-1003" maxlength="1000" required></div>
+      <button class="btn btn-primary px-3" id="askBtn" type="submit"><i class="bi bi-send-fill"></i><span class="d-none d-sm-inline">Ask</span></button>
     </form>
   </div>
 </div></div>
@@ -28,45 +27,39 @@
 {% block scripts %}
 <script>
 (function () {
-  const log = document.getElementById("log");
-  const input = document.getElementById("question");
-  const btn = document.getElementById("askBtn");
+  const log = document.getElementById("log"), input = document.getElementById("question"), btn = document.getElementById("askBtn");
   const history = [];
-
   function add(text, who, source) {
-    const d = document.createElement("div");
-    d.className = "assistant-msg " + who;
-    d.textContent = text;
+    const wrap = document.createElement("div");
+    wrap.className = "assistant-msg " + who;
+    wrap.innerHTML = who === "bot" ? '<span class="who"><i class="bi bi-stars"></i></span><div><div class="body"></div></div>' : '<div><div class="body"></div></div>';
+    const body = wrap.querySelector(".body");
+    if (text === null) body.innerHTML = '<span class="typing"><span></span><span></span><span></span></span>';
+    else body.textContent = text;
     if (source) {
       const tag = document.createElement("div");
-      tag.className = "text-muted mt-1"; tag.style.fontSize = ".7rem";
-      tag.textContent = source === "gemini" ? "Gemini · grounded in live data" : "Offline engine · live data";
-      d.appendChild(tag);
+      tag.className = "src";
+      tag.innerHTML = source === "gemini" ? '<i class="bi bi-stars"></i> Gemini · grounded in live data' : '<i class="bi bi-cpu"></i> Offline engine · live data';
+      wrap.querySelector("div:last-child").appendChild(tag);
     }
-    log.appendChild(d); log.scrollTop = log.scrollHeight;
-    return d;
+    log.appendChild(wrap); log.scrollTo({ top: log.scrollHeight, behavior: "smooth" });
+    return wrap;
   }
-
   async function send(q) {
     add(q, "user");
-    const thinking = add("Thinking…", "bot");
+    const thinking = add(null, "bot");
     btn.disabled = true;
     try {
       const r = await window.csPost("{{ url_for('assistant.ask_question') }}", { question: q, history });
-      thinking.remove();
-      add(r.answer, "bot", r.source);
+      thinking.remove(); add(r.answer, "bot", r.source);
       history.push({ role: "user", text: q }, { role: "assistant", text: r.answer });
-    } catch (e) {
-      thinking.textContent = "Sorry — " + e.message;
-    } finally { btn.disabled = false; input.focus(); }
+    } catch (e) { thinking.querySelector(".body").textContent = "Sorry — " + e.message; }
+    finally { btn.disabled = false; input.focus(); }
   }
-
   document.getElementById("askForm").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const q = input.value.trim(); if (!q) return;
-    input.value = ""; send(q);
+    e.preventDefault(); const q = input.value.trim(); if (!q) return; input.value = ""; send(q);
   });
-  document.querySelectorAll("#suggestions button").forEach((b) => b.addEventListener("click", () => send(b.textContent.trim())));
+  document.querySelectorAll("#suggestions [data-q]").forEach((b) => b.addEventListener("click", () => send(b.dataset.q)));
 })();
 </script>
 {% endblock %}

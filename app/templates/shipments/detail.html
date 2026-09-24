@@ -1,80 +1,82 @@
 {% extends "base.html" %}
-{% from "_macros.html" import risk_badge, status_badge %}
+{% from "_macros.html" import risk_badge, status_badge, mode_icon %}
 {% block title %}{{ s.tracking_no }}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}">{% endblock %}
 {% block content %}
-<a class="small text-decoration-none" href="{{ url_for('shipments.index') }}">&larr; All shipments</a>
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2 mb-3">
+<div class="page-head reveal">
   <div>
-    <h4 class="mb-0">{{ s.tracking_no }} {{ status_badge(s.status) }}</h4>
-    <div class="text-muted">{{ s.origin }} &rarr; {{ s.destination }} · {{ s.transport_mode }}</div>
+    <a class="small fw-600" href="{{ url_for('shipments.index') }}"><i class="bi bi-arrow-left"></i> All shipments</a>
+    <h1 class="mt-2 d-flex flex-wrap align-items-center gap-2">{{ s.tracking_no }} {{ status_badge(s.status) }} {{ risk_badge(s.risk_level, s.risk_score) }}</h1>
+    <p>{{ mode_icon(s.transport_mode) }} {{ s.origin }} <i class="bi bi-arrow-right mx-1"></i> {{ s.destination }} · {{ s.transport_mode }}</p>
   </div>
   {% if can_manage(current_user) %}
-  <div class="d-flex gap-2">
+  <div class="page-actions">
     <form method="post" action="{{ url_for('shipments.scan', shipment_id=s.id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-outline-warning btn-sm">Run risk scan now</button>
+      <button class="btn btn-outline-warning"><i class="bi bi-radar"></i> Run risk scan now</button>
     </form>
-    <a class="btn btn-primary btn-sm" href="{{ url_for('shipments.edit', shipment_id=s.id) }}">Edit</a>
+    <a class="btn btn-primary" href="{{ url_for('shipments.edit', shipment_id=s.id) }}"><i class="bi bi-pencil"></i> Edit</a>
   </div>
   {% endif %}
 </div>
 
-<div class="row g-4">
-  <div class="col-lg-5">
-    <div class="card border-0 shadow-sm mb-4"><div class="card-body">
-      <h6 class="card-title">Details</h6>
-      <table class="table table-sm mb-0">
-        <tr><td class="text-muted">Risk</td><td>{{ risk_badge(s.risk_level, s.risk_score) }}</td></tr>
-        <tr><td class="text-muted">Cargo</td><td>{{ s.cargo_type.name if s.cargo_type else "—" }}{% if s.cargo_type %} <span class="text-muted small">(sensitivity {{ s.cargo_type.sensitivity_weight }})</span>{% endif %}</td></tr>
-        <tr><td class="text-muted">Cargo value</td><td>₹{{ "{:,.0f}".format(s.cargo_value or 0) }}</td></tr>
-        <tr><td class="text-muted">Operator</td><td>{{ s.assigned_operator.name ~ " (" ~ s.assigned_operator.role ~ ")" if s.assigned_operator else "Unassigned" }}</td></tr>
-        <tr><td class="text-muted">Origin hub</td><td>{{ s.hub.name if s.hub else "—" }}</td></tr>
-        <tr><td class="text-muted">Position</td><td>{{ "%.4f"|format(s.current_lat) if s.current_lat is not none else "—" }}, {{ "%.4f"|format(s.current_lng) if s.current_lng is not none else "—" }}</td></tr>
-        <tr><td class="text-muted">Created</td><td>{{ s.created_at.strftime("%d/%m/%Y %H:%M") if s.created_at else "—" }}</td></tr>
-      </table>
+<div class="row g-3 g-lg-4">
+  <div class="col-lg-5 d-flex flex-column gap-3 gap-lg-4">
+    <div class="card reveal"><div class="card-body">
+      <div class="card-title mb-3">Details</div>
+      <div class="row g-3 small">
+        {% for label, val, icon in [
+          ("Cargo", (s.cargo_type.name ~ " · sensitivity " ~ s.cargo_type.sensitivity_weight) if s.cargo_type else "—", "bi-boxes"),
+          ("Cargo value", "₹{:,.0f}".format(s.cargo_value or 0), "bi-currency-rupee"),
+          ("Operator", (s.assigned_operator.name ~ " (" ~ s.assigned_operator.role|replace('_', ' ') ~ ")") if s.assigned_operator else "Unassigned", "bi-person"),
+          ("Origin hub", s.hub.name if s.hub else "—", "bi-geo-alt"),
+          ("Position", ("%.4f, %.4f"|format(s.current_lat, s.current_lng)) if s.current_lat is not none else "—", "bi-crosshair"),
+          ("Created", s.created_at.strftime("%d %b %Y, %H:%M") if s.created_at else "—", "bi-calendar3"),
+        ] %}
+        <div class="col-6">
+          <div class="text-muted mb-1"><i class="bi {{ icon }} me-1"></i>{{ label }}</div>
+          <div class="fw-600">{{ val }}</div>
+        </div>
+        {% endfor %}
+      </div>
     </div></div>
-
     {% if can_manage(current_user) or s.assigned_operator_id == current_user.id %}
-    <div class="card border-0 shadow-sm"><div class="card-body">
-      <h6 class="card-title">Update status</h6>
+    <div class="card reveal"><div class="card-body">
+      <div class="card-title mb-2">Update status</div>
       <form method="post" action="{{ url_for('shipments.update_status', shipment_id=s.id) }}" class="d-flex gap-2">
         {{ status_form.hidden_tag() }}
-        {{ status_form.status(class_="form-select form-select-sm") }}
-        {{ status_form.submit(class_="btn btn-sm btn-outline-primary text-nowrap") }}
+        {{ status_form.status(class_="form-select") }}
+        <button type="submit" class="btn btn-soft text-nowrap"><i class="bi bi-arrow-repeat"></i> Update</button>
       </form>
     </div></div>
     {% endif %}
   </div>
-
   <div class="col-lg-7">
-    <div class="card border-0 shadow-sm mb-4"><div class="card-body p-0">
-      <div id="miniMap" style="height: 320px;" class="rounded"></div>
+    <div class="card map-card h-100 reveal"><div class="card-body p-2">
+      <div id="miniMap" style="height: 100%; min-height: 340px;"></div>
     </div></div>
   </div>
 </div>
 
-<div class="card border-0 shadow-sm mt-4"><div class="card-body">
-  <h6 class="card-title">Disruption history</h6>
+<div class="card mt-3 mt-lg-4 reveal"><div class="card-body">
+  <div class="card-head"><div class="card-title">Disruption history</div><span class="small text-muted">{{ disruptions|length }} record{{ '' if disruptions|length == 1 else 's' }}</span></div>
   {% if disruptions %}
-  <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+  <div class="table-responsive"><table class="table align-middle">
     <thead><tr><th>Detected</th><th>Factor</th><th>Severity</th><th>Status</th><th>Chosen option</th></tr></thead>
     <tbody>
     {% for d in disruptions %}
       {% set chosen = d.solutions|selectattr('selected')|list %}
       <tr>
-        <td class="small">{{ d.detected_at.strftime("%d/%m/%Y %H:%M") }}</td>
-        <td>{{ d.type }}</td>
+        <td class="small">{{ d.detected_at.strftime("%d %b %Y, %H:%M") }}</td>
+        <td><span class="tag">{{ d.type }}</span></td>
         <td>{{ risk_badge(d.severity, d.risk_score) }}</td>
-        <td>{% if d.status == 'Open' %}<a href="{{ url_for('disruptions.index') }}#d{{ d.id }}" class="badge bg-danger text-decoration-none">Open — resolve</a>{% else %}<span class="badge bg-secondary">Resolved</span>{% endif %}</td>
+        <td>{% if d.status == 'Open' %}<a href="{{ url_for('disruptions.index') }}#d{{ d.id }}" class="pill risk-HIGH">Open — resolve</a>{% else %}<span class="pill status-pill">Resolved</span>{% endif %}</td>
         <td class="small">{{ chosen[0].description if chosen else "—" }}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table></div>
-  {% else %}
-  <p class="text-muted small mb-0">No disruptions recorded for this shipment.</p>
-  {% endif %}
+  {% else %}<div class="empty-state"><i class="bi bi-shield-check"></i>No disruptions recorded for this shipment.</div>{% endif %}
 </div></div>
 {% endblock %}
 {% block scripts %}
@@ -84,18 +86,20 @@
   const pos = {{ [s.current_lat, s.current_lng] | tojson if s.current_lat is not none else "null" }};
   const origin = {{ [origin_hub.lat, origin_hub.lng] | tojson if origin_hub else "null" }};
   const dest = {{ [dest_hub.lat, dest_hub.lng] | tojson if dest_hub else "null" }};
-  const map = L.map("miniMap").setView(pos || origin || [22.5, 78.9], 5);
+  const map = L.map("miniMap", { zoomControl: true }).setView(pos || origin || [22.5, 78.9], 5);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" }).addTo(map);
+  const hubIcon = (cls) => L.divIcon({ className: "", html: `<span style="display:grid;place-items:center;width:26px;height:26px;border-radius:8px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25);color:#4f46e5"><i class="bi ${cls}"></i></span>`, iconSize: [26, 26], iconAnchor: [13, 13] });
   const pts = [];
-  if (origin) { L.marker(origin).addTo(map).bindTooltip("Origin: {{ s.origin }}"); pts.push(origin); }
-  if (dest) { L.marker(dest).addTo(map).bindTooltip("Destination: {{ s.destination }}"); pts.push(dest); }
-  if (origin && dest) L.polyline([origin, dest], { color: "#6c757d", dashArray: "6 6", weight: 2 }).addTo(map);
+  if (origin) { L.marker(origin, { icon: hubIcon("bi-box-arrow-up-right") }).addTo(map).bindTooltip("Origin: {{ s.origin }}"); pts.push(origin); }
+  if (dest) { L.marker(dest, { icon: hubIcon("bi-flag-fill") }).addTo(map).bindTooltip("Destination: {{ s.destination }}"); pts.push(dest); }
+  if (origin && dest) L.polyline([origin, dest], { color: "#6366f1", dashArray: "6 8", weight: 2.5, opacity: .8 }).addTo(map);
   if (pos) {
-    L.circleMarker(pos, { radius: 10, color: "#fff", weight: 2, fillColor: "{{ risk_color }}", fillOpacity: 1 })
-      .addTo(map).bindPopup("{{ s.tracking_no }} — {{ s.risk_level }}").openPopup();
+    L.circleMarker(pos, { radius: 11, color: "#fff", weight: 3, fillColor: "{{ risk_color }}", fillOpacity: 1 })
+      .addTo(map).bindPopup("<strong>{{ s.tracking_no }}</strong><br>{{ s.risk_level }} risk").openPopup();
     pts.push(pos);
   }
-  if (pts.length > 1) map.fitBounds(pts, { padding: [30, 30] });
+  if (pts.length > 1) map.fitBounds(pts, { padding: [40, 40] });
+  window.addEventListener("resize", () => map.invalidateSize());
 })();
 </script>
 {% endblock %}

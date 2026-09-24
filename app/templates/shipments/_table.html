@@ -1,0 +1,24 @@
+{% from "_macros.html" import risk_badge, status_badge, mode_icon %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle" id="{{ table_id|default('shipmentTable') }}">
+    <thead><tr><th>Shipment</th><th>Route</th><th>Mode</th><th>Cargo</th><th>Status</th><th>Risk</th><th class="text-end">Value</th><th></th></tr></thead>
+    <tbody>
+      {% for s in shipments %}
+      <tr>
+        <td class="text-nowrap"><a href="{{ url_for('shipments.detail', shipment_id=s.id) }}" class="fw-600">{{ s.tracking_no }}</a>
+          {% if s.assigned_operator %}<div class="small text-muted">{{ s.assigned_operator.name }}</div>{% endif %}</td>
+        <td><span class="fw-500">{{ s.origin }}</span> <i class="bi bi-arrow-right text-muted mx-1"></i> {{ s.destination }}</td>
+        <td><span class="tag">{{ mode_icon(s.transport_mode) }} {{ s.transport_mode }}</span></td>
+        <td class="text-muted">{{ s.cargo_type.name if s.cargo_type else "—" }}</td>
+        <td>{{ status_badge(s.status) }}</td>
+        <td>{{ risk_badge(s.risk_level, s.risk_score) }}</td>
+        <td class="text-end mono">₹{{ "{:,.0f}".format(s.cargo_value or 0) }}</td>
+        <td class="text-end text-nowrap">
+          <a class="btn btn-sm btn-ghost" href="{{ url_for('shipments.detail', shipment_id=s.id) }}" title="View"><i class="bi bi-eye"></i></a>
+          {% if can_manage(current_user) %}<a class="btn btn-sm btn-ghost" href="{{ url_for('shipments.edit', shipment_id=s.id) }}" title="Edit"><i class="bi bi-pencil"></i></a>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

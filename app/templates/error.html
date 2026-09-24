@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ code }}{% endblock %}
+{% block content %}
+<div class="d-grid place-items-center" style="min-height: 60vh; place-items:center">
+  <div class="text-center reveal" style="max-width: 460px">
+    <div class="kpi-icon {{ 'red' if code == 403 else '' }} mx-auto" style="width:64px;height:64px;font-size:1.8rem;border-radius:18px"><i class="bi {{ 'bi-shield-lock' if code == 403 else 'bi-signpost-split' }}"></i></div>
+    <div class="eyebrow">Error {{ code }}</div>
+    <h1 class="mb-2">{{ title }}</h1>
+    <p class="text-muted mb-4">{{ message }}</p>
+    <a class="btn btn-primary" href="{{ url_for('main.dashboard') if current_user.is_authenticated else url_for('main.index') }}"><i class="bi bi-house"></i> Back to {{ 'dashboard' if current_user.is_authenticated else 'home' }}</a>
+  </div>
+</div>
+{% endblock %}
