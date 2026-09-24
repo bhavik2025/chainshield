@@ -1,0 +1,45 @@
+{% extends "dashboard/_layout.html" %}
+{% block title %}Dashboard · Cargo Types{% endblock %}
+{% block dashboard_content %}
+<div class="row g-4">
+  <div class="col-lg-8"><div class="card border-0 shadow-sm"><div class="card-body">
+    <h6 class="card-title mb-1">Cargo Types</h6>
+    <p class="small text-muted">Sensitivity weight (0.0 – 1.0) feeds the risk engine's 20% cargo factor: weight × 100.</p>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead><tr><th>Name</th><th style="width:140px">Sensitivity</th><th>Used by</th><th></th></tr></thead>
+        <tbody>
+          {% for c in cargo_types %}
+          <tr>
+            <td colspan="2">
+              <form method="post" action="{{ url_for('main.edit_cargo', cargo_id=c.id) }}" class="d-flex gap-2" id="cargo{{ c.id }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input name="name" value="{{ c.name }}" class="form-control form-control-sm" required>
+                <input type="number" name="sensitivity_weight" value="{{ c.sensitivity_weight }}" min="0" max="1" step="0.05" class="form-control form-control-sm" style="width:110px" required>
+              </form>
+            </td>
+            <td class="small text-muted">{{ usage[c.id] }} shipment(s)</td>
+            <td class="text-end text-nowrap">
+              <button form="cargo{{ c.id }}" class="btn btn-outline-primary btn-sm">Save</button>
+              <form method="post" action="{{ url_for('main.delete_cargo', cargo_id=c.id) }}" class="d-inline" onsubmit="return csConfirm(this)">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-outline-danger btn-sm" {% if usage[c.id] %}disabled title="In use by shipments"{% endif %}>Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div></div></div>
+  <div class="col-lg-4"><div class="card border-0 shadow-sm"><div class="card-body">
+    <h6 class="card-title mb-3">Add a cargo type</h6>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="mb-2"><label class="form-label small">Name</label><input name="name" class="form-control form-control-sm" placeholder="e.g. Pharma" required></div>
+      <div class="mb-3"><label class="form-label small">Sensitivity weight</label><input type="number" name="sensitivity_weight" min="0" max="1" step="0.05" value="0.5" class="form-control form-control-sm" required></div>
+      <button class="btn btn-primary btn-sm w-100">Add cargo type</button>
+    </form>
+  </div></div></div>
+</div>
+{% endblock %}

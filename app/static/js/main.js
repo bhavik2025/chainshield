@@ -14,6 +14,17 @@
     return data;
   };
 
+  // Two-step confirm for destructive buttons: first click arms, second click submits.
+  window.csConfirm = function (form) {
+    if (form.dataset.armed) return true;
+    const b = form.querySelector("button");
+    form.dataset.armed = "1";
+    b.dataset.label = b.textContent;
+    b.textContent = "Confirm?";
+    setTimeout(() => { delete form.dataset.armed; b.textContent = b.dataset.label; }, 4000);
+    return false;
+  };
+
   window.csToast = function (text, variant) {
     const area = document.getElementById("toastArea");
     if (!area || !window.bootstrap) return;

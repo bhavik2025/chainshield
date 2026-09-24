@@ -23,6 +23,12 @@ def create_app(config_name=None):
     register_blueprints(app)
     register_cli(app)
 
+    with app.app_context():
+        try:
+            _apply_schema_patches()
+        except Exception:  # table doesn't exist yet (before `flask init-db`)
+            db.session.rollback()
+
     @app.get("/health")
     def health_check():
         return {"status": "ok", "service": "chainshield-mca"}, 200
@@ -49,7 +55,8 @@ def register_extensions(app):
 
     @login_manager.user_loader
     def load_user(user_id):
-        return db.session.get(User, int(user_id))
+        user = db.session.get(User, int(user_id))
+        return user if user and user.is_active else None  # deactivated -> logged out
 
     @app.context_processor
     def inject_globals():
@@ -125,6 +132,12 @@ def _apply_schema_patches():
         db.session.execute(text("ALTER TABLE shipments ADD COLUMN cargo_value FLOAT DEFAULT 0.0"))
         db.session.commit()
         print("Schema patch applied: shipments.cargo_value")
+
+    user_cols = [row[1] for row in db.session.execute(text("PRAGMA table_info(users)")).fetchall()]
+    if user_cols and "is_active" not in user_cols:
+        db.session.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1"))
+        db.session.commit()
+        print("Schema patch applied: users.is_active")
 
 
 def register_cli(app):

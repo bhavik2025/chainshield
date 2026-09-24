@@ -8,10 +8,16 @@
     <small class="text-muted">Detected automatically by the risk engine. Pick a route option to resolve.</small>
   </div>
   {% if can_manage(current_user) %}
-  <form method="post" action="{{ url_for('disruptions.scan_now') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="btn btn-outline-warning btn-sm">Run risk scan now</button>
-  </form>
+  <div class="d-flex gap-2">
+    <form method="post" action="{{ url_for('disruptions.trigger_demo') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline-danger btn-sm" title="Simulate a severe weather event on one shipment">&#9889; Trigger demo disruption</button>
+    </form>
+    <form method="post" action="{{ url_for('disruptions.scan_now') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline-warning btn-sm">Run risk scan now</button>
+    </form>
+  </div>
   {% endif %}
 </div>
 <div id="newDisruptionBanner" class="alert alert-warning d-none">New disruption detected — <a href="{{ url_for('disruptions.index') }}">refresh</a> to see it.</div>

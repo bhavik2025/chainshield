@@ -19,6 +19,10 @@ def login():
         password = request.form.get("password", "")
         user = User.query.filter_by(email=email).first()
 
+        if user and user.check_password(password) and not user.is_active:
+            flash("This account has been deactivated. Contact your administrator.", "danger")
+            return render_template("auth/login.html")
+
         if user and user.check_password(password):
             login_user(user)
             db.session.add(ActivityLog(user_id=user.id, action=f"{user.name} ({user.role}) logged in"))

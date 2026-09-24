@@ -8,6 +8,8 @@
   <li class="nav-item"><a class="nav-link {% if active_tab == 'users' %}active{% endif %}" href="{{ url_for('main.dashboard_users') }}">Users</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'shipments' %}active{% endif %}" href="{{ url_for('main.dashboard_shipments') }}">Shipments</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'hubs' %}active{% endif %}" href="{{ url_for('main.dashboard_hubs') }}">Base Cities</a></li>
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'cargo' %}active{% endif %}" href="{{ url_for('main.dashboard_cargo') }}">Cargo Types</a></li>
+  <li class="nav-item"><a class="nav-link" href="{{ url_for('main.reports') }}">Reports</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'config' %}active{% endif %}" href="{{ url_for('main.dashboard_config') }}">System Config</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'activity' %}active{% endif %}" href="{{ url_for('main.dashboard_activity') }}">Activity Log</a></li>
 </ul>

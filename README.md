@@ -24,13 +24,15 @@ map tiles works **offline**. That matters for a viva on unreliable Wi-Fi.
 | **Risk engine** (`services/risk_engine.py`) | Every `RISK_SCAN_INTERVAL_SECONDS` (APScheduler) scores each in-transit shipment: `0.40·weather + 0.25·congestion + 0.20·cargo sensitivity + 0.15·lane history` → LOW / AT-RISK (≥30) / MEDIUM (≥50) / HIGH (≥70). Opens a disruption at AT-RISK+, escalates it if risk keeps rising. |
 | **Route solver** (`services/route_solver.py`) | Builds hold / continue / reroute-via-hub (haversine detour) / mode-switch options and ranks them by `0.60·risk + 0.25·time + 0.15·cost`. Option #1 = recommended. |
 | **Shipments** | Full CRUD (Flask-WTF validation), detail page with mini-map, on-demand risk scan, status updates by the assigned operator. |
-| **Live map** | Leaflet map of shipments (colored by risk), hubs and routes; refreshes over Socket.IO after every scan. |
+| **Live map** | Leaflet map of shipments (colored by risk), hubs, routes and shaded disruption zones (radius by severity); refreshes over Socket.IO after every scan. |
 | **Disruptions** | Ranked route options per disruption; managers apply one and the assigned operator is notified. |
 | **Dashboards** | Admin overview (KPIs, 4 Chart.js charts, activity), role dashboard for managers/operators. Charts update live. |
 | **Notifications** | Stored per user + pushed live (toast + bell badge) via Socket.IO rooms. |
 | **Chat** | Direct messages between users, persisted and delivered instantly over Socket.IO. |
 | **AI assistant** | Gemini answers grounded in a live data snapshot; built-in offline engine when no key / no internet. |
-| **Admin panel** | Users & roles, shipments, hubs, system config, activity log. |
+| **Admin panel** | Users (add, change role, deactivate), hubs (add/edit/delete), cargo types (CRUD with sensitivity weights), shipments, system config, activity log. |
+| **Reports** | Disruption summary, resolution time per decision-maker, activity audit log and shipment risk report — date-range filter and CSV export (admin + manager). |
+| **Demo mode** | "Trigger demo disruption" injects a severe weather event so a HIGH disruption appears instantly; `flask reset-demo` restores the demo data. |
 | **Roles** | admin · manager · captain · pilot · driver · loco_pilot. Field operators only see their assigned shipments. Admin can't be self-registered. |
 
 ## Run locally (Windows)

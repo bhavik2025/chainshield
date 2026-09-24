@@ -22,6 +22,9 @@ class User(db.Model, UserMixin):
     role = db.Column(db.String(20), nullable=False, default="manager")
     # roles: admin | manager | captain | pilot | driver | loco_pilot
     phone = db.Column(db.String(20))
+    # Overrides UserMixin.is_active: deactivated users can't log in (and are
+    # logged out on their next request — see load_user in app/__init__.py).
+    is_active = db.Column(db.Boolean, nullable=False, default=True, server_default="1")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def set_password(self, raw_password):

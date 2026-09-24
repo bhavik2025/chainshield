@@ -178,6 +178,42 @@ def _alert(disruption):
     )
 
 
+def trigger_demo_disruption(shipment=None):
+    """
+    Demo / simulation mode: inject a severe weather + congestion event on one
+    in-transit shipment (the given one, or the most sensitive one without an
+    open disruption) and run it through the normal pipeline immediately —
+    score -> HIGH disruption -> ranked route options -> live alerts.
+    Returns the new Disruption, or None if no eligible shipment exists.
+    """
+    from app.services.route_solver import generate_route_solutions
+
+    if shipment is None:
+        open_ids = {d.shipment_id for d in Disruption.query.filter_by(status="Open").all()}
+        candidates = [s for s in Shipment.query.filter_by(status="In-transit").all() if s.id not in open_ids]
+        if not candidates:
+            return None
+        shipment = max(candidates, key=lambda s: s.cargo_type.sensitivity_weight if s.cargo_type else 0.5)
+
+    weather, congestion = 100.0, 100.0  # simulated storm + gridlock on the current corridor
+    cargo = (shipment.cargo_type.sensitivity_weight * 100) if shipment.cargo_type else 50.0
+    score = compute_risk_score(weather, congestion, cargo, _get_history_score(shipment))
+    shipment.risk_score, shipment.risk_level = score, classify_risk(score)
+
+    for d in Disruption.query.filter_by(shipment_id=shipment.id, status="Open").all():
+        d.status, d.resolved_at = "Resolved", datetime.utcnow()  # superseded by the demo event
+
+    disruption = Disruption(shipment_id=shipment.id, type="Weather", severity=shipment.risk_level, risk_score=score)
+    db.session.add(disruption)
+    db.session.flush()
+    generate_route_solutions(disruption)
+    _alert(disruption)
+    db.session.add(ActivityLog(action=f"DEMO: simulated severe weather event on {shipment.tracking_no}"))
+    db.session.commit()
+    socketio.emit("shipments_updated", {"reason": "demo"})
+    return disruption
+
+
 def scan_all_shipments():
     """
     One full scan pass over every in-transit shipment. Safe to call repeatedly

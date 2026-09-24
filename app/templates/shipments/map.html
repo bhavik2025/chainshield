@@ -12,6 +12,7 @@
     <span><span class="legend-dot" style="background: {{ color }}"></span>{{ level }}</span>
     {% endfor %}
     <span><span class="legend-dot" style="background:#1F2A63; border-radius:2px"></span>Hub</span>
+    <span><span class="legend-dot" style="background:#dc354533; border:1px dashed #dc3545"></span>Disruption zone</span>
     <div class="form-check form-switch ms-2 mb-0">
       <input class="form-check-input" type="checkbox" id="showDelivered">
       <label class="form-check-label" for="showDelivered">Show delivered</label>
@@ -38,6 +39,7 @@
 (function () {
   const map = L.map("liveMap").setView([22.5, 78.9], 5);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" }).addTo(map);
+  const zoneLayer = L.layerGroup().addTo(map);
   const hubLayer = L.layerGroup().addTo(map);
   const routeLayer = L.layerGroup().addTo(map);
   const shipLayer = L.layerGroup().addTo(map);
@@ -50,7 +52,12 @@
     const res = await fetch("{{ url_for('shipments.live_data') }}", { headers: { Accept: "application/json" } });
     if (!res.ok) return;
     const data = await res.json();
-    hubLayer.clearLayers(); routeLayer.clearLayers(); shipLayer.clearLayers();
+    hubLayer.clearLayers(); routeLayer.clearLayers(); shipLayer.clearLayers(); zoneLayer.clearLayers();
+
+    (data.zones || []).forEach((z) => {
+      L.circle([z.lat, z.lng], { radius: z.radius_km * 1000, color: z.color, weight: 1, fillColor: z.color, fillOpacity: 0.15, dashArray: "4 4" })
+        .addTo(zoneLayer).bindTooltip(esc(z.label));
+    });
 
     const bounds = data.hubs.map((h) => [h.lat, h.lng]);  // always frame every hub
     data.hubs.forEach((h) => {

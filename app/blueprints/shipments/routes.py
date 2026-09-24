@@ -11,6 +11,7 @@ from app.services.risk_engine import scan_shipment, hub_for_city, _alert
 shipments_bp = Blueprint("shipments", __name__)
 
 FIELD_OPERATOR_ROLES = ["captain", "pilot", "driver", "loco_pilot"]
+ZONE_RADIUS_KM = {"AT-RISK": 40, "MEDIUM": 70, "HIGH": 110}
 RISK_COLORS = {"HIGH": "#dc3545", "MEDIUM": "#fd7e14", "AT-RISK": "#ffc107", "LOW": "#198754"}
 
 
@@ -234,4 +235,18 @@ def live_data():
         })
     hubs = [{"name": h.name, "location": h.location, "lat": h.lat, "lng": h.lng}
             for h in Hub.query.all() if h.lat is not None]
-    return jsonify({"shipments": shipments, "hubs": hubs})
+
+    # Disruption zones: a shaded radius around each open disruption, sized by severity.
+    visible = {s["id"] for s in shipments}
+    zones = []
+    for d in Disruption.query.filter_by(status="Open").all():
+        s = d.shipment
+        if s.id not in visible or s.current_lat is None:
+            continue
+        zones.append({
+            "lat": s.current_lat, "lng": s.current_lng,
+            "radius_km": ZONE_RADIUS_KM.get(d.severity, 50),
+            "color": RISK_COLORS.get(d.severity, "#dc3545"),
+            "label": f"{d.type} disruption · {d.severity} ({d.risk_score}) · {s.tracking_no}",
+        })
+    return jsonify({"shipments": shipments, "hubs": hubs, "zones": zones})

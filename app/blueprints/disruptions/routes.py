@@ -56,6 +56,23 @@ def scan_now():
     return redirect(request.referrer or url_for("disruptions.index"))
 
 
+@disruptions_bp.route("/demo", methods=["POST"])
+@login_required
+def trigger_demo():
+    """Demo mode: simulate a severe event so a live disruption appears instantly."""
+    if current_user.role not in ("admin", "manager"):
+        abort(403)
+    from app.services.risk_engine import trigger_demo_disruption
+
+    d = trigger_demo_disruption()
+    if d:
+        flash(f"Demo event injected: {d.shipment.tracking_no} is now {d.severity} ({d.risk_score}). "
+              f"Pick a route option below.", "warning")
+    else:
+        flash("No in-transit shipment without an open disruption — run `flask reset-demo` first.", "info")
+    return redirect(url_for("disruptions.index"))
+
+
 @disruptions_bp.route("/<int:disruption_id>/resolve", methods=["POST"])
 @login_required
 def resolve(disruption_id):
