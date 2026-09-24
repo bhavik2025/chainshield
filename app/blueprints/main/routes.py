@@ -1,10 +1,11 @@
 from functools import wraps
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, abort, jsonify
 from flask_login import login_required, current_user
 
 from app.extensions import db, socketio
 from app.models import User, Hub, Shipment, Disruption, ActivityLog
+from app.services.stats import chart_data
 
 main_bp = Blueprint("main", __name__)
 
@@ -30,28 +31,47 @@ def index():
     return render_template("index.html")
 
 
+def _my_shipments():
+    """Field operators see only their assigned shipments; admins/managers see all."""
+    q = Shipment.query
+    if current_user.role in FIELD_OPERATOR_ROLES:
+        q = q.filter_by(assigned_operator_id=current_user.id)
+    return q.all()
+
+
 @main_bp.route("/dashboard")
 @login_required
 def dashboard():
     if current_user.role != "admin":
-        return render_template("dashboard_simple.html")
+        shipments = _my_shipments()
+        ids = {s.id for s in shipments}
+        open_disruptions = [
+            d for d in Disruption.query.filter_by(status="Open").order_by(Disruption.risk_score.desc()).all()
+            if d.shipment_id in ids
+        ]
+        watchlist = sorted(
+            [s for s in shipments if s.status != "Delivered"], key=lambda s: s.risk_score or 0, reverse=True
+        )[:8]
+        return render_template(
+            "dashboard_simple.html",
+            charts=chart_data(shipments),
+            stats_url=url_for("main.dashboard_stats"),
+            open_disruptions=open_disruptions[:5],
+            watchlist=watchlist,
+        )
 
     shipments = Shipment.query.all()
     total_shipments = len(shipments) or 1  # avoid a divide-by-zero in the progress bars
 
     total_cargo_value = sum(s.cargo_value or 0 for s in shipments)
     value_at_risk = sum(
-        (s.cargo_value or 0) for s in shipments if s.risk_level in ("AT-RISK", "MEDIUM", "HIGH")
+        (s.cargo_value or 0) for s in shipments
+        if s.risk_level in ("AT-RISK", "MEDIUM", "HIGH") and s.status != "Delivered"
     )
 
     on_time = sum(1 for s in shipments if s.risk_level in (None, "LOW"))
     at_risk = sum(1 for s in shipments if s.risk_level in ("AT-RISK", "MEDIUM"))
     disrupted = sum(1 for s in shipments if s.risk_level == "HIGH")
-
-    mode_counts = {"Sea": 0, "Air": 0, "Road": 0, "Rail": 0}
-    for s in shipments:
-        if s.transport_mode in mode_counts:
-            mode_counts[s.transport_mode] += 1
 
     recent_activity = ActivityLog.query.order_by(ActivityLog.timestamp.desc()).limit(8).all()
 
@@ -67,10 +87,19 @@ def dashboard():
         managers=User.query.filter_by(role="manager").count(),
         field_operators=User.query.filter(User.role.in_(FIELD_OPERATOR_ROLES)).count(),
         status_counts={"On Time": on_time, "At Risk": at_risk, "Disrupted": disrupted},
-        mode_counts=mode_counts,
         recent_activity=recent_activity,
         total_shipments=total_shipments,
+        charts=chart_data(shipments),
+        stats_url=url_for("main.dashboard_stats"),
     )
+
+
+@main_bp.route("/dashboard/api/stats")
+@login_required
+def dashboard_stats():
+    """Live chart data — refetched by the dashboard on every Socket.IO update."""
+    shipments = Shipment.query.all() if current_user.role == "admin" else _my_shipments()
+    return jsonify(chart_data(shipments))
 
 
 @main_bp.route("/dashboard/users")

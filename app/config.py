@@ -19,6 +19,16 @@ class BaseConfig:
     # External APIs (optional — services fall back to simulated data if unset)
     OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY", "")
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+    GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+
+    # Live simulation: each risk scan nudges in-transit shipments toward their
+    # destination hub, so the live map actually moves during a demo.
+    SIMULATE_MOVEMENT = os.environ.get("SIMULATE_MOVEMENT", "true").lower() == "true"
+    MOVEMENT_STEP_DEG = float(os.environ.get("MOVEMENT_STEP_DEG", 0.15))
+
+    # Socket.IO concurrency model. "threading" works with `flask run` /
+    # `python wsgi.py` on any OS; production (Gunicorn + eventlet) overrides it.
+    SOCKETIO_ASYNC_MODE = os.environ.get("SOCKETIO_ASYNC_MODE", "threading")
 
 
 class DevelopmentConfig(BaseConfig):
@@ -32,10 +42,12 @@ class TestingConfig(BaseConfig):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     WTF_CSRF_ENABLED = False
+    SIMULATE_MOVEMENT = False
 
 
 class ProductionConfig(BaseConfig):
     DEBUG = False
+    SOCKETIO_ASYNC_MODE = os.environ.get("SOCKETIO_ASYNC_MODE", "eventlet")
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL", f"sqlite:///{os.path.join(basedir, 'instance', 'chainshield.db')}"
     )

@@ -1,0 +1,63 @@
+{# Chart.js panels — expects `charts` (from services/stats.py) and `stats_url` #}
+<div class="row g-4 mb-4">
+  <div class="col-md-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body">
+    <h6 class="card-title">Active shipments by risk</h6>
+    <div class="chart-box"><canvas id="chartRisk"></canvas></div>
+  </div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body">
+    <h6 class="card-title">Shipments by mode</h6>
+    <div class="chart-box"><canvas id="chartModes"></canvas></div>
+  </div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body">
+    <h6 class="card-title">Disruptions by dominant factor</h6>
+    <div class="chart-box"><canvas id="chartFactors"></canvas></div>
+  </div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body">
+    <h6 class="card-title">Disruptions — last 7 days</h6>
+    <div class="chart-box"><canvas id="chartTrend"></canvas></div>
+  </div></div></div>
+</div>
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+<script>
+(function () {
+  const RISK_COLORS = ["#198754", "#ffc107", "#fd7e14", "#dc3545"];
+  const NAVY = "#1F2A63";
+  const opts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 12 } } } };
+  const noLegend = { ...opts, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } };
+  let data = {{ charts | tojson }};
+
+  const risk = new Chart(document.getElementById("chartRisk"), { type: "doughnut",
+    data: { labels: data.risk.labels, datasets: [{ data: data.risk.values, backgroundColor: RISK_COLORS }] }, options: opts });
+  const modes = new Chart(document.getElementById("chartModes"), { type: "bar",
+    data: { labels: data.modes.labels, datasets: [{ data: data.modes.values, backgroundColor: NAVY, borderRadius: 4 }] }, options: noLegend });
+  const factors = new Chart(document.getElementById("chartFactors"), { type: "bar",
+    data: { labels: data.factors.labels, datasets: [{ data: data.factors.values, backgroundColor: ["#0dcaf0", "#fd7e14", "#6f42c1", "#6c757d"], borderRadius: 4 }] },
+    options: { ...noLegend, indexAxis: "y", scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } } });
+  const trend = new Chart(document.getElementById("chartTrend"), { type: "line",
+    data: { labels: data.trend.labels, datasets: [
+      { label: "Detected", data: data.trend.detected, borderColor: "#dc3545", backgroundColor: "#dc354522", fill: true, tension: .3 },
+      { label: "Resolved", data: data.trend.resolved, borderColor: "#198754", backgroundColor: "#19875422", fill: true, tension: .3 } ] },
+    options: { ...opts, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
+
+  function apply(d) {
+    risk.data.datasets[0].data = d.risk.values; risk.update();
+    modes.data.datasets[0].data = d.modes.values; modes.update();
+    factors.data.datasets[0].data = d.factors.values; factors.update();
+    trend.data.labels = d.trend.labels;
+    trend.data.datasets[0].data = d.trend.detected; trend.data.datasets[1].data = d.trend.resolved; trend.update();
+    for (const [k, v] of Object.entries(d.kpis)) {
+      document.querySelectorAll(`[data-kpi="${k}"]`).forEach((el) => (el.textContent = v));
+    }
+  }
+  async function refresh() {
+    const res = await fetch("{{ stats_url }}", { headers: { Accept: "application/json" } });
+    if (res.ok) apply(await res.json());
+  }
+  // main.js (which opens the socket) loads after this block, so hook up on DOMContentLoaded.
+  document.addEventListener("DOMContentLoaded", () => {
+    if (!window.csSocket) return;
+    window.csSocket.on("shipments_updated", refresh);
+    window.csSocket.on("disruption_new", refresh);
+  });
+})();
+</script>

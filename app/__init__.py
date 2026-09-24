@@ -37,11 +37,13 @@ def register_extensions(app):
     login_manager.login_message_category = "warning"
     csrf.init_app(app)
 
-    # async_mode explicitly set to match the eventlet Gunicorn worker in the
-    # Dockerfile — leaving this on the default "threading" mode would make
-    # Socket.IO fall back to long-polling instead of real websockets in
-    # production.
-    socketio.init_app(app, cors_allowed_origins="*", async_mode="eventlet")
+    # async_mode comes from config: "eventlet" in production (matches the
+    # Gunicorn eventlet worker in the Dockerfile, so real websockets are used),
+    # "threading" in development so `flask run` / `python wsgi.py` work on
+    # Windows, Linux and macOS alike.
+    socketio.init_app(app, cors_allowed_origins="*", async_mode=app.config["SOCKETIO_ASYNC_MODE"])
+
+    from app import sockets  # noqa: F401  (registers Socket.IO event handlers)
 
     from app.models import User
 
@@ -49,7 +51,22 @@ def register_extensions(app):
     def load_user(user_id):
         return db.session.get(User, int(user_id))
 
+    @app.context_processor
+    def inject_globals():
+        from flask_login import current_user
+        from app.models import Notification
+
+        unread = 0
+        if current_user.is_authenticated:
+            unread = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+        return {"unread_notifications": unread, "can_manage": _can_manage}
+
     _start_scheduler(app)
+
+
+def _can_manage(user):
+    """Admins and managers can create/edit/delete shipments."""
+    return getattr(user, "role", None) in ("admin", "manager")
 
 
 def _start_scheduler(app):
@@ -224,6 +241,43 @@ def register_cli(app):
                 if added_shipments:
                     db.session.commit()
                     print(f"Seeded {added_shipments} new demo shipment(s) (existing ones left untouched).")
+
+                # Give each unassigned demo shipment the field operator matching its mode,
+                # so logging in as a driver/pilot/captain/loco pilot shows real data.
+                operator_for_mode = {
+                    "Road": "suresh@chainshield.com", "Rail": "ajay@chainshield.com",
+                    "Air": "rohit@chainshield.com", "Sea": "karan@chainshield.com",
+                }
+                assigned = 0
+                for s in Shipment.query.filter(Shipment.tracking_no.in_([k["tracking_no"] for k in wanted_shipments]),
+                                               Shipment.assigned_operator_id.is_(None)).all():
+                    op = User.query.filter_by(email=operator_for_mode.get(s.transport_mode, "")).first()
+                    if op:
+                        s.assigned_operator_id = op.id
+                        assigned += 1
+                if assigned:
+                    db.session.commit()
+                    print(f"Assigned field operators to {assigned} demo shipment(s).")
+
+    @app.cli.command("reset-demo")
+    def reset_demo():
+        """Put the demo shipments back at their origin hubs and clear disruptions (flask reset-demo)."""
+        from app.models import Shipment, Disruption, Notification
+        from app.services.risk_engine import hub_for_city
+
+        with app.app_context():
+            for d in Disruption.query.all():
+                db.session.delete(d)
+            Notification.query.delete()
+            n = 0
+            for s in Shipment.query.filter(Shipment.tracking_no.like("CS-10%")).all():
+                hub = hub_for_city(s.origin)
+                if hub:
+                    s.current_lat, s.current_lng = hub.lat, hub.lng
+                s.status, s.risk_level, s.risk_score = "In-transit", "LOW", 0.0
+                n += 1
+            db.session.commit()
+            print(f"Reset {n} shipment(s) to their origin hubs; disruptions and notifications cleared.")
 
     @app.cli.command("scan-risk")
     def scan_risk():

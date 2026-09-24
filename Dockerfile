@@ -1,5 +1,6 @@
 # ChainShield Transportation System — MCA Sem 3 rebuild
-FROM python:3.11-slim
+# Pinned to 3.10 to match the local dev venv (Python 3.10.x) so "works locally" == "works in Docker".
+FROM python:3.10-slim
 
 # Prevent .pyc files and enable unbuffered logging (useful in `docker logs`)
 ENV PYTHONDONTWRITEBYTECODE=1 \

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Notifications</h4>
+  {% if items|selectattr('is_read', 'equalto', false)|list %}
+  <form method="post" action="{{ url_for('notifications.mark_all_read') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm btn-outline-secondary">Mark all as read</button>
+  </form>
+  {% endif %}
+</div>
+<div class="card border-0 shadow-sm"><div class="card-body p-0">
+  <ul class="list-group list-group-flush" id="notifList">
+    {% for n in items %}
+    <li class="list-group-item d-flex justify-content-between align-items-start gap-3 {% if not n.is_read %}bg-primary-subtle{% endif %}">
+      <div>
+        {% if not n.is_read %}<span class="badge bg-danger me-1">New</span>{% endif %}
+        <span class="small">{{ n.message }}</span>
+        <div class="text-muted" style="font-size:.75rem">{{ n.created_at.strftime("%d/%m/%Y %H:%M") }}</div>
+      </div>
+      {% if not n.is_read %}
+      <form method="post" action="{{ url_for('notifications.mark_read', notification_id=n.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-link text-nowrap">Mark read</button>
+      </form>
+      {% endif %}
+    </li>
+    {% else %}
+    <li class="list-group-item text-muted small" id="notifEmpty">No notifications yet. You'll be alerted here — and with a live pop-up — when the risk engine flags one of your shipments.</li>
+    {% endfor %}
+  </ul>
+</div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener("cs:notification", (e) => {
+  document.getElementById("notifEmpty")?.remove();
+  const li = document.createElement("li");
+  li.className = "list-group-item bg-primary-subtle";
+  li.innerHTML = '<span class="badge bg-danger me-1">New</span><span class="small"></span><div class="text-muted" style="font-size:.75rem"></div>';
+  li.querySelector(".small").textContent = e.detail.message;
+  li.querySelector(".text-muted").textContent = e.detail.created_at + " · just now";
+  document.getElementById("notifList").prepend(li);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Live Map{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}">{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <h4 class="mb-0">Live Shipment Map</h4>
+    <small class="text-muted">Updates automatically after every risk scan · <span id="lastUpdate">loading…</span></small>
+  </div>
+  <div class="d-flex flex-wrap gap-2 small align-items-center">
+    {% for level, color in risk_colors.items() %}
+    <span><span class="legend-dot" style="background: {{ color }}"></span>{{ level }}</span>
+    {% endfor %}
+    <span><span class="legend-dot" style="background:#1F2A63; border-radius:2px"></span>Hub</span>
+    <div class="form-check form-switch ms-2 mb-0">
+      <input class="form-check-input" type="checkbox" id="showDelivered">
+      <label class="form-check-label" for="showDelivered">Show delivered</label>
+    </div>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-9">
+    <div class="card border-0 shadow-sm"><div class="card-body p-0">
+      <div id="liveMap" style="height: 70vh; min-height: 420px;" class="rounded"></div>
+    </div></div>
+  </div>
+  <div class="col-lg-3">
+    <div class="card border-0 shadow-sm"><div class="card-body">
+      <h6 class="card-title">At-risk shipments</h6>
+      <ul class="list-unstyled small mb-0" id="riskList"><li class="text-muted">Loading…</li></ul>
+    </div></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
+<script>
+(function () {
+  const map = L.map("liveMap").setView([22.5, 78.9], 5);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" }).addTo(map);
+  const hubLayer = L.layerGroup().addTo(map);
+  const routeLayer = L.layerGroup().addTo(map);
+  const shipLayer = L.layerGroup().addTo(map);
+  const showDelivered = document.getElementById("showDelivered");
+  let fitted = false;
+
+  function esc(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+
+  async function refresh() {
+    const res = await fetch("{{ url_for('shipments.live_data') }}", { headers: { Accept: "application/json" } });
+    if (!res.ok) return;
+    const data = await res.json();
+    hubLayer.clearLayers(); routeLayer.clearLayers(); shipLayer.clearLayers();
+
+    const bounds = data.hubs.map((h) => [h.lat, h.lng]);  // always frame every hub
+    data.hubs.forEach((h) => {
+      L.marker([h.lat, h.lng], {
+        icon: L.divIcon({ className: "hub-icon", html: "&#9632;", iconSize: [14, 14] }),
+      }).addTo(hubLayer).bindTooltip(esc(h.name));
+    });
+
+    const risky = [];
+    data.shipments.forEach((s) => {
+      if (s.status === "Delivered" && !showDelivered.checked) return;
+      if (s.origin_pos && s.dest_pos && s.status !== "Delivered") {
+        L.polyline([s.origin_pos, [s.lat, s.lng]], { color: s.color, weight: 3, opacity: 0.8 }).addTo(routeLayer);
+        L.polyline([[s.lat, s.lng], s.dest_pos], { color: s.color, weight: 2, opacity: 0.5, dashArray: "6 6" }).addTo(routeLayer);
+      }
+      L.circleMarker([s.lat, s.lng], { radius: 9, color: "#fff", weight: 2, fillColor: s.color, fillOpacity: 1 })
+        .addTo(shipLayer)
+        .bindPopup(`<strong>${esc(s.tracking_no)}</strong><br>${esc(s.origin)} &rarr; ${esc(s.destination)}<br>` +
+                   `${esc(s.mode)} · ${esc(s.status)}<br>Risk: <strong style="color:${s.color}">${esc(s.risk_level)}</strong> (${s.risk_score})<br>` +
+                   `<a href="${s.url}">Open shipment &rarr;</a>`);
+      bounds.push([s.lat, s.lng]);
+      if (["HIGH", "MEDIUM", "AT-RISK"].includes(s.risk_level) && s.status !== "Delivered") risky.push(s);
+    });
+
+    const list = document.getElementById("riskList");
+    risky.sort((a, b) => b.risk_score - a.risk_score);
+    list.innerHTML = risky.length
+      ? risky.map((s) => `<li class="d-flex justify-content-between border-bottom py-1"><a href="${s.url}">${esc(s.tracking_no)}</a><span style="color:${s.color}" class="fw-semibold">${esc(s.risk_level)} ${s.risk_score}</span></li>`).join("")
+      : '<li class="text-muted">None — all clear.</li>';
+
+    if (!fitted && bounds.length > 1) { map.fitBounds(bounds, { padding: [40, 40] }); fitted = true; }
+    document.getElementById("lastUpdate").textContent = "last update " + new Date().toLocaleTimeString();
+  }
+
+  showDelivered.addEventListener("change", refresh);
+  refresh();
+  if (window.csSocket) {
+    window.csSocket.on("shipments_updated", refresh);
+    window.csSocket.on("disruption_new", refresh);
+  }
+  setInterval(refresh, 30000); // safety net if the socket drops
+})();
+</script>
+{% endblock %}

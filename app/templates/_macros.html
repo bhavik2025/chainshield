@@ -1,0 +1,20 @@
+{% macro risk_badge(level, score=None) -%}
+  {% if level %}
+  <span class="badge {% if level == 'HIGH' %}bg-danger{% elif level == 'MEDIUM' %}bg-orange{% elif level == 'AT-RISK' %}bg-warning text-dark{% else %}bg-success{% endif %}">{{ level }}{% if score is not none %} ({{ score }}){% endif %}</span>
+  {% else %}
+  <span class="badge bg-secondary">Not scanned</span>
+  {% endif %}
+{%- endmacro %}
+
+{% macro status_badge(status) -%}
+  <span class="badge {% if status == 'Delivered' %}bg-success-subtle text-success-emphasis{% elif status == 'In-transit' %}bg-primary-subtle text-primary-emphasis{% else %}bg-secondary-subtle text-secondary-emphasis{% endif %}">{{ status }}</span>
+{%- endmacro %}
+
+{% macro field(f) -%}
+  <div class="mb-3">
+    {{ f.label(class_="form-label small fw-semibold") }}
+    {{ f(class_="form-control" + (" is-invalid" if f.errors else "") if f.type not in ("SelectField",) else "form-select" + (" is-invalid" if f.errors else "")) }}
+    {% if f.description %}<div class="form-text">{{ f.description }}</div>{% endif %}
+    {% for e in f.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+  </div>
+{%- endmacro %}

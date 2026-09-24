@@ -9,4 +9,6 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 socketio = SocketIO()
 csrf = CSRFProtect()
-scheduler = BackgroundScheduler()
+# UTC explicitly: all timestamps are stored as UTC, and tzlocal crashes on some
+# machine timezone names (e.g. "Asia/Calcutta") if left to auto-detect.
+scheduler = BackgroundScheduler(timezone="UTC")

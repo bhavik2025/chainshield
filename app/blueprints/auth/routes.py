@@ -4,6 +4,8 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app.extensions import db
 from app.models import User, ActivityLog
 
+SELF_REGISTER_ROLES = ["manager", "captain", "pilot", "driver", "loco_pilot"]
+
 auth_bp = Blueprint("auth", __name__, template_folder="../../templates/auth")
 
 
@@ -36,6 +38,13 @@ def register():
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
         role = request.form.get("role", "manager")
+
+        # Admin can't be self-assigned at sign-up; an existing admin promotes users.
+        if role not in SELF_REGISTER_ROLES:
+            role = "manager"
+        if not name or not email or len(password) < 6:
+            flash("Name, email and a password of at least 6 characters are required.", "warning")
+            return redirect(url_for("auth.register"))
 
         if User.query.filter_by(email=email).first():
             flash("An account with that email already exists.", "warning")

@@ -1,35 +1,53 @@
 {% extends "base.html" %}
+{% from "_macros.html" import risk_badge, status_badge %}
 {% block title %}Shipments{% endblock %}
 {% block content %}
-<h4 class="mb-3">Shipments</h4>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h4 class="mb-0">Shipments</h4>
+  <div class="d-flex gap-2">
+    <input id="shipmentFilter" type="search" class="form-control form-control-sm" placeholder="Filter…" style="max-width:200px">
+    <a class="btn btn-outline-primary btn-sm text-nowrap" href="{{ url_for('shipments.live_map') }}">Live map</a>
+    {% if can_manage(current_user) %}
+    <a class="btn btn-primary btn-sm text-nowrap" href="{{ url_for('shipments.create') }}">+ New shipment</a>
+    {% endif %}
+  </div>
+</div>
 <div class="card border-0 shadow-sm"><div class="card-body">
   {% if shipments %}
   <div class="table-responsive">
-    <table class="table table-sm align-middle">
-      <thead><tr><th>Tracking No.</th><th>Origin</th><th>Destination</th><th>Mode</th><th>Status</th><th>Risk</th><th>Cargo Value</th></tr></thead>
+    <table class="table table-sm table-hover align-middle mb-0" id="shipmentTable">
+      <thead><tr><th>Tracking No.</th><th>Route</th><th>Mode</th><th>Cargo</th><th>Status</th><th>Risk</th><th class="text-end">Value</th><th></th></tr></thead>
       <tbody>
         {% for s in shipments %}
         <tr>
-          <td>{{ s.tracking_no }}</td>
-          <td>{{ s.origin }}</td>
-          <td>{{ s.destination }}</td>
+          <td><a href="{{ url_for('shipments.detail', shipment_id=s.id) }}" class="fw-semibold text-decoration-none">{{ s.tracking_no }}</a></td>
+          <td>{{ s.origin }} &rarr; {{ s.destination }}</td>
           <td>{{ s.transport_mode }}</td>
-          <td>{{ s.status }}</td>
-          <td>
-            {% if s.risk_level %}
-            <span class="badge {% if s.risk_level == 'HIGH' %}bg-danger{% elif s.risk_level in ('MEDIUM', 'AT-RISK') %}bg-warning text-dark{% else %}bg-success{% endif %}">{{ s.risk_level }} ({{ s.risk_score }})</span>
-            {% else %}
-            <span class="badge bg-secondary">Not scanned</span>
+          <td>{{ s.cargo_type.name if s.cargo_type else "—" }}</td>
+          <td>{{ status_badge(s.status) }}</td>
+          <td>{{ risk_badge(s.risk_level, s.risk_score) }}</td>
+          <td class="text-end">₹{{ "{:,.0f}".format(s.cargo_value or 0) }}</td>
+          <td class="text-end text-nowrap">
+            <a class="btn btn-link btn-sm p-0 me-2" href="{{ url_for('shipments.detail', shipment_id=s.id) }}">View</a>
+            {% if can_manage(current_user) %}
+            <a class="btn btn-link btn-sm p-0" href="{{ url_for('shipments.edit', shipment_id=s.id) }}">Edit</a>
             {% endif %}
           </td>
-          <td>${{ "%.0f"|format(s.cargo_value or 0) }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% else %}
-  <p class="text-muted mb-0">No shipments yet. Run <code>flask seed-db</code> to add demo shipments.</p>
+  <p class="text-muted mb-0">No shipments yet.{% if can_manage(current_user) %} <a href="{{ url_for('shipments.create') }}">Create the first one</a> or run <code>flask seed-db</code>.{% endif %}</p>
   {% endif %}
 </div></div>
+<script>
+document.getElementById("shipmentFilter")?.addEventListener("input", (e) => {
+  const q = e.target.value.toLowerCase();
+  document.querySelectorAll("#shipmentTable tbody tr").forEach((tr) => {
+    tr.style.display = tr.textContent.toLowerCase().includes(q) ? "" : "none";
+  });
+});
+</script>
 {% endblock %}

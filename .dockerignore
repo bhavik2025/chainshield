@@ -1,0 +1,17 @@
+# Keep the Docker build context small and free of host-only files.
+.venv/
+.venv_test/
+venv/
+env/
+__pycache__/
+**/__pycache__/
+*.pyc
+.git/
+.gitignore
+.idea/
+.vscode/
+*.log
+# Secrets and data come in at runtime (env_file + volume), never baked into the image.
+.env
+instance/*.db
+instance/*.db-journal

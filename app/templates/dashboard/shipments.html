@@ -21,7 +21,7 @@
             <span class="badge bg-secondary">Not scanned</span>
             {% endif %}
           </td>
-          <td>${{ "%.0f"|format(s.cargo_value or 0) }}</td>
+          <td>₹{{ "{:,.0f}".format(s.cargo_value or 0) }}</td>
         </tr>
         {% endfor %}
       </tbody>

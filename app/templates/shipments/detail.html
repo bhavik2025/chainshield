@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "_macros.html" import risk_badge, status_badge %}
+{% block title %}{{ s.tracking_no }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}">{% endblock %}
+{% block content %}
+<a class="small text-decoration-none" href="{{ url_for('shipments.index') }}">&larr; All shipments</a>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2 mb-3">
+  <div>
+    <h4 class="mb-0">{{ s.tracking_no }} {{ status_badge(s.status) }}</h4>
+    <div class="text-muted">{{ s.origin }} &rarr; {{ s.destination }} · {{ s.transport_mode }}</div>
+  </div>
+  {% if can_manage(current_user) %}
+  <div class="d-flex gap-2">
+    <form method="post" action="{{ url_for('shipments.scan', shipment_id=s.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline-warning btn-sm">Run risk scan now</button>
+    </form>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('shipments.edit', shipment_id=s.id) }}">Edit</a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm mb-4"><div class="card-body">
+      <h6 class="card-title">Details</h6>
+      <table class="table table-sm mb-0">
+        <tr><td class="text-muted">Risk</td><td>{{ risk_badge(s.risk_level, s.risk_score) }}</td></tr>
+        <tr><td class="text-muted">Cargo</td><td>{{ s.cargo_type.name if s.cargo_type else "—" }}{% if s.cargo_type %} <span class="text-muted small">(sensitivity {{ s.cargo_type.sensitivity_weight }})</span>{% endif %}</td></tr>
+        <tr><td class="text-muted">Cargo value</td><td>₹{{ "{:,.0f}".format(s.cargo_value or 0) }}</td></tr>
+        <tr><td class="text-muted">Operator</td><td>{{ s.assigned_operator.name ~ " (" ~ s.assigned_operator.role ~ ")" if s.assigned_operator else "Unassigned" }}</td></tr>
+        <tr><td class="text-muted">Origin hub</td><td>{{ s.hub.name if s.hub else "—" }}</td></tr>
+        <tr><td class="text-muted">Position</td><td>{{ "%.4f"|format(s.current_lat) if s.current_lat is not none else "—" }}, {{ "%.4f"|format(s.current_lng) if s.current_lng is not none else "—" }}</td></tr>
+        <tr><td class="text-muted">Created</td><td>{{ s.created_at.strftime("%d/%m/%Y %H:%M") if s.created_at else "—" }}</td></tr>
+      </table>
+    </div></div>
+
+    {% if can_manage(current_user) or s.assigned_operator_id == current_user.id %}
+    <div class="card border-0 shadow-sm"><div class="card-body">
+      <h6 class="card-title">Update status</h6>
+      <form method="post" action="{{ url_for('shipments.update_status', shipment_id=s.id) }}" class="d-flex gap-2">
+        {{ status_form.hidden_tag() }}
+        {{ status_form.status(class_="form-select form-select-sm") }}
+        {{ status_form.submit(class_="btn btn-sm btn-outline-primary text-nowrap") }}
+      </form>
+    </div></div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm mb-4"><div class="card-body p-0">
+      <div id="miniMap" style="height: 320px;" class="rounded"></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-4"><div class="card-body">
+  <h6 class="card-title">Disruption history</h6>
+  {% if disruptions %}
+  <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Detected</th><th>Factor</th><th>Severity</th><th>Status</th><th>Chosen option</th></tr></thead>
+    <tbody>
+    {% for d in disruptions %}
+      {% set chosen = d.solutions|selectattr('selected')|list %}
+      <tr>
+        <td class="small">{{ d.detected_at.strftime("%d/%m/%Y %H:%M") }}</td>
+        <td>{{ d.type }}</td>
+        <td>{{ risk_badge(d.severity, d.risk_score) }}</td>
+        <td>{% if d.status == 'Open' %}<a href="{{ url_for('disruptions.index') }}#d{{ d.id }}" class="badge bg-danger text-decoration-none">Open — resolve</a>{% else %}<span class="badge bg-secondary">Resolved</span>{% endif %}</td>
+        <td class="small">{{ chosen[0].description if chosen else "—" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="text-muted small mb-0">No disruptions recorded for this shipment.</p>
+  {% endif %}
+</div></div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
+<script>
+(function () {
+  const pos = {{ [s.current_lat, s.current_lng] | tojson if s.current_lat is not none else "null" }};
+  const origin = {{ [origin_hub.lat, origin_hub.lng] | tojson if origin_hub else "null" }};
+  const dest = {{ [dest_hub.lat, dest_hub.lng] | tojson if dest_hub else "null" }};
+  const map = L.map("miniMap").setView(pos || origin || [22.5, 78.9], 5);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" }).addTo(map);
+  const pts = [];
+  if (origin) { L.marker(origin).addTo(map).bindTooltip("Origin: {{ s.origin }}"); pts.push(origin); }
+  if (dest) { L.marker(dest).addTo(map).bindTooltip("Destination: {{ s.destination }}"); pts.push(dest); }
+  if (origin && dest) L.polyline([origin, dest], { color: "#6c757d", dashArray: "6 6", weight: 2 }).addTo(map);
+  if (pos) {
+    L.circleMarker(pos, { radius: 10, color: "#fff", weight: 2, fillColor: "{{ risk_color }}", fillOpacity: 1 })
+      .addTo(map).bindPopup("{{ s.tracking_no }} — {{ s.risk_level }}").openPopup();
+    pts.push(pos);
+  }
+  if (pts.length > 1) map.fitBounds(pts, { padding: [30, 30] });
+})();
+</script>
+{% endblock %}

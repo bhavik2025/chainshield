@@ -1,33 +1,51 @@
 {% extends "base.html" %}
+{% from "_macros.html" import risk_badge %}
 {% block title %}Disruptions{% endblock %}
 {% block content %}
-<h4 class="mb-3">Open Disruptions</h4>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <h4 class="mb-0">Open Disruptions <span class="badge bg-danger">{{ open_disruptions|length }}</span></h4>
+    <small class="text-muted">Detected automatically by the risk engine. Pick a route option to resolve.</small>
+  </div>
+  {% if can_manage(current_user) %}
+  <form method="post" action="{{ url_for('disruptions.scan_now') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline-warning btn-sm">Run risk scan now</button>
+  </form>
+  {% endif %}
+</div>
+<div id="newDisruptionBanner" class="alert alert-warning d-none">New disruption detected — <a href="{{ url_for('disruptions.index') }}">refresh</a> to see it.</div>
+
 {% if open_disruptions %}
 <div class="row g-3 mb-4">
   {% for d in open_disruptions %}
-  <div class="col-md-6">
+  <div class="col-md-6" id="d{{ d.id }}">
     <div class="card border-0 shadow-sm h-100"><div class="card-body">
       <div class="d-flex justify-content-between align-items-start mb-2">
         <div>
-          <h6 class="mb-0">{{ d.shipment.tracking_no }}</h6>
-          <small class="text-muted">{{ d.shipment.origin }} &rarr; {{ d.shipment.destination }}</small>
+          <h6 class="mb-0"><a href="{{ url_for('shipments.detail', shipment_id=d.shipment.id) }}" class="text-decoration-none">{{ d.shipment.tracking_no }}</a></h6>
+          <small class="text-muted">{{ d.shipment.origin }} &rarr; {{ d.shipment.destination }} · {{ d.shipment.transport_mode }}</small>
         </div>
-        <span class="badge {% if d.severity == 'HIGH' %}bg-danger{% elif d.severity in ('MEDIUM', 'AT-RISK') %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ d.severity }} · {{ d.risk_score }}</span>
+        {{ risk_badge(d.severity, d.risk_score) }}
       </div>
-      <p class="small text-muted mb-2">Dominant factor: {{ d.type }} · detected {{ d.detected_at.strftime("%d/%m %H:%M") }}</p>
+      <p class="small text-muted mb-2">Dominant factor: <strong>{{ d.type }}</strong> · detected {{ d.detected_at.strftime("%d/%m %H:%M") }}</p>
+      {% if can_manage(current_user) %}
       <form method="post" action="{{ url_for('disruptions.resolve', disruption_id=d.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% for sol in d.solutions|sort(attribute='option_no') %}
-        <div class="form-check border rounded p-2 mb-2">
+        <div class="form-check border rounded p-2 ps-4 mb-2 {% if loop.first %}border-success{% endif %}">
           <input class="form-check-input" type="radio" name="option_no" value="{{ sol.option_no }}" id="opt-{{ d.id }}-{{ sol.option_no }}" {% if loop.first %}checked{% endif %} required>
           <label class="form-check-label small w-100" for="opt-{{ d.id }}-{{ sol.option_no }}">
-            <strong>{{ sol.description }}</strong><br>
-            +{{ sol.extra_time_hours }}h · +${{ "%.0f"|format(sol.extra_cost) }} · residual risk {{ sol.risk_score }}
+            <strong>{{ sol.description }}</strong>{% if loop.first %} <span class="badge bg-success-subtle text-success-emphasis">Recommended</span>{% endif %}<br>
+            +{{ sol.extra_time_hours }}h · +₹{{ "{:,.0f}".format(sol.extra_cost or 0) }} · residual risk {{ sol.risk_score }}
           </label>
         </div>
         {% endfor %}
         <button type="submit" class="btn btn-primary btn-sm">Apply selected option</button>
       </form>
+      {% else %}
+      <p class="small mb-0">Awaiting a decision from your manager — you'll be notified of the chosen route.</p>
+      {% endif %}
     </div></div>
   </div>
   {% endfor %}
@@ -38,22 +56,31 @@
 
 <h5 class="mb-3">Recently Resolved</h5>
 {% if resolved_disruptions %}
+<div class="card border-0 shadow-sm"><div class="card-body">
 <div class="table-responsive">
-  <table class="table table-sm">
-    <thead><tr><th>Shipment</th><th>Severity</th><th>Resolved option</th><th>Resolved at</th></tr></thead>
+  <table class="table table-sm mb-0">
+    <thead><tr><th>Shipment</th><th>Factor</th><th>Severity</th><th>Resolved option</th><th>Resolved at</th></tr></thead>
     <tbody>
       {% for d in resolved_disruptions %}
+      {% set chosen = d.solutions|selectattr('selected')|list %}
       <tr>
         <td>{{ d.shipment.tracking_no }}</td>
-        <td>{{ d.severity }}</td>
-        <td>{{ (d.solutions|selectattr('selected')|first).description if (d.solutions|selectattr('selected')|list) else "—" }}</td>
+        <td>{{ d.type }}</td>
+        <td>{{ risk_badge(d.severity) }}</td>
+        <td class="small">{{ chosen[0].description if chosen else "Auto-closed (delivered)" }}</td>
         <td class="text-muted small">{{ d.resolved_at.strftime("%d/%m/%Y %H:%M") if d.resolved_at else "—" }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+</div></div>
 {% else %}
 <p class="text-muted small">None yet.</p>
 {% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+if (window.csSocket) window.csSocket.on("disruption_new", () => document.getElementById("newDisruptionBanner").classList.remove("d-none"));
+</script>
 {% endblock %}

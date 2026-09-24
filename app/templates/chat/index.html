@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Chat{% endblock %}
+{% block content %}
+<h4 class="mb-3">Team Chat</h4>
+<div class="card border-0 shadow-sm chat-shell"><div class="row g-0 h-100">
+  <div class="col-md-4 border-end chat-contacts h-100 {% if peer %}d-none d-md-block{% endif %}">
+    <div class="list-group list-group-flush">
+      {% for u in contacts %}
+      {% set lm = last.get(u.id) %}
+      <a href="{{ url_for('chat.conversation', user_id=u.id) }}" class="list-group-item list-group-item-action {% if peer and peer.id == u.id %}active{% endif %}" data-contact="{{ u.id }}">
+        <div class="d-flex justify-content-between">
+          <strong class="small">{{ u.name }}</strong>
+          <span class="badge rounded-pill bg-danger d-none" data-unread="{{ u.id }}">new</span>
+        </div>
+        <div class="small {% if peer and peer.id == u.id %}text-white-50{% else %}text-muted{% endif %} text-truncate" data-preview="{{ u.id }}">
+          {{ (lm.content if lm else u.role|replace("_", " ")|title) }}
+        </div>
+      </a>
+      {% else %}
+      <div class="p-3 text-muted small">No other users yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col-md-8 d-flex flex-column h-100">
+    {% if peer %}
+    <div class="border-bottom p-3 d-flex align-items-center gap-2">
+      <a href="{{ url_for('chat.index') }}" class="d-md-none text-decoration-none">&larr;</a>
+      <div><strong>{{ peer.name }}</strong> <span class="text-muted small">· {{ peer.role|replace("_", " ")|title }}</span></div>
+    </div>
+    <div class="chat-messages flex-grow-1 p-3" id="chatMessages">
+      {% for m in messages %}
+      <div class="chat-bubble {{ 'mine' if m.sender_id == current_user.id else 'theirs' }}">{{ m.content }}<div class="meta">{{ m.sent_at.strftime("%d/%m %H:%M") }}</div></div>
+      {% else %}
+      <p class="text-muted small text-center mt-5" id="chatEmpty">Start the conversation with {{ peer.name }}.</p>
+      {% endfor %}
+    </div>
+    <form class="border-top p-2 d-flex gap-2" id="chatForm" autocomplete="off">
+      <input class="form-control" id="chatInput" placeholder="Type a message…" maxlength="2000" required>
+      <button class="btn btn-primary" type="submit">Send</button>
+    </form>
+    {% else %}
+    <div class="d-flex flex-grow-1 align-items-center justify-content-center text-muted p-4 text-center">
+      Pick a colleague on the left to start chatting. Messages are delivered instantly over Socket.IO.
+    </div>
+    {% endif %}
+  </div>
+</div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const me = {{ current_user.id }};
+  const peer = {{ peer.id if peer else "null" }};
+  window.csChatPeer = peer;
+  const box = document.getElementById("chatMessages");
+  const scroll = () => box && (box.scrollTop = box.scrollHeight);
+  scroll();
+
+  function bubble(m) {
+    document.getElementById("chatEmpty")?.remove();
+    const d = document.createElement("div");
+    d.className = "chat-bubble " + (m.sender_id === me ? "mine" : "theirs");
+    d.textContent = m.content;
+    const meta = document.createElement("div");
+    meta.className = "meta"; meta.textContent = m.sent_at;
+    d.appendChild(meta);
+    box.appendChild(d); scroll();
+  }
+
+  const seen = new Set();
+  if (window.csSocket) {
+    window.csSocket.on("chat_message", (m) => {
+      if (seen.has(m.id)) return; seen.add(m.id);
+      const other = m.sender_id === me ? m.receiver_id : m.sender_id;
+      const prev = document.querySelector(`[data-preview="${other}"]`);
+      if (prev) prev.textContent = m.content;
+      if (peer && other === peer) bubble(m);
+      else if (m.sender_id !== me) document.querySelector(`[data-unread="${other}"]`)?.classList.remove("d-none");
+    });
+  }
+
+  const form = document.getElementById("chatForm");
+  if (form) form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const input = document.getElementById("chatInput");
+    const content = input.value.trim();
+    if (!content) return;
+    input.value = "";
+    try {
+      const m = await window.csPost(`{{ url_for('chat.index') }}${peer}/send`, { content });
+      if (!seen.has(m.id)) { seen.add(m.id); bubble(m); }
+    } catch (err) {
+      input.value = content;
+      window.csToast(err.message, "danger");
+    }
+  });
+})();
+</script>
+{% endblock %}
