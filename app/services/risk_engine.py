@@ -23,7 +23,9 @@ from app.extensions import db, socketio
 from app.models import Shipment, Disruption, Hub, ActivityLog
 from app.services.weather import get_weather_severity
 
-ALERT_LEVELS = ("AT-RISK", "MEDIUM", "HIGH")
+# AT-RISK (>=30) shipments are flagged and watched; a Disruption with route
+# options is opened from MEDIUM (>=50) upwards, and escalated to HIGH (>=70).
+ALERT_LEVELS = ("MEDIUM", "HIGH")
 SEVERITY_RANK = {"LOW": 0, "AT-RISK": 1, "MEDIUM": 2, "HIGH": 3}
 
 
@@ -52,12 +54,14 @@ def classify_risk(score: float) -> str:
 def _get_congestion_level(transport_mode: str) -> float:
     """
     Simulated congestion score (0-100) until a real traffic/AIS/ATC feed is
-    wired in. Road/Rail biased higher than Sea/Air, matching the fallback
-    pattern already used in weather.py so the whole scan loop stays fully
+    wired in. Road/Rail biased higher than Sea/Air, with an occasional severe
+    jam — the same pattern as weather.py, so the scan loop stays fully
     demoable without external services.
     """
-    bias = {"Road": 55, "Rail": 40, "Sea": 20, "Air": 15}.get(transport_mode, 35)
-    return round(min(100, max(0, random.uniform(bias - 20, bias + 30))), 2)
+    bias = {"Road": 35, "Rail": 25, "Sea": 15, "Air": 10}.get(transport_mode, 25)
+    if random.random() < 0.10:  # occasional jam / port backlog / ATC hold
+        return round(random.uniform(70, 100), 2)
+    return round(min(100, max(0, random.uniform(bias - 15, bias + 20))), 2)
 
 
 def _get_history_score(shipment) -> float:
@@ -190,7 +194,9 @@ def trigger_demo_disruption(shipment=None):
 
     if shipment is None:
         open_ids = {d.shipment_id for d in Disruption.query.filter_by(status="Open").all()}
-        candidates = [s for s in Shipment.query.filter_by(status="In-transit").all() if s.id not in open_ids]
+        in_transit = Shipment.query.filter_by(status="In-transit").all()
+        # Prefer a shipment that is currently calm; otherwise escalate any in-transit one.
+        candidates = [s for s in in_transit if s.id not in open_ids] or in_transit
         if not candidates:
             return None
         shipment = max(candidates, key=lambda s: s.cargo_type.sensitivity_weight if s.cargo_type else 0.5)
