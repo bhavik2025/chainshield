@@ -15,7 +15,7 @@ Flask-SocketIO · APScheduler · Jinja2 · Bootstrap 5 · Leaflet.js · Chart.js
 Google Gemini · OpenWeatherMap · Docker (Gunicorn + eventlet)
 
 Front-end libraries are bundled in `app/static/vendor/`, so everything except the
-map tiles works **offline**. That matters for a viva on unreliable Wi-Fi.
+map tiles works **offline**. That matters for a viva on unreliable Wi-Fi
 
 ## Features
 
