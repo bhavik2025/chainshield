@@ -1,8 +1,8 @@
 """
 SQLAlchemy models for ChainShield Transportation System.
 
-Mirrors the Data Dictionary in the MCA Sem 3 documentation
-(MCA_Sem3_Documentation/ChainShield_MCA_Sem3_Documentation.docx, Section 3.2).
+Nine tables: users, hubs, cargo_types, shipments, disruptions,
+route_solutions, notifications, messages and activity_log.
 """
 from datetime import datetime
 

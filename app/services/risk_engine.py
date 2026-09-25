@@ -3,7 +3,7 @@ Risk Engine — 4-factor weighted disruption risk scoring + scan loop.
 
 Composite score = 0.40*weather + 0.25*congestion + 0.20*cargo + 0.15*history
 Thresholds: >=70 HIGH, >=50 MEDIUM, >=30 AT-RISK, <30 LOW
-(see MCA Sem 3 documentation, Section 1.3 / 3.2).
+(thresholds are configurable in app/config.py).
 
 Each scan pass (run by APScheduler every RISK_SCAN_INTERVAL_SECONDS):
   1. moves every in-transit shipment one step toward its destination hub

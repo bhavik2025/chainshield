@@ -1,12 +1,12 @@
-# ChainShield Transportation System — MCA Sem 3 (Group 59)
+# ChainShield Transportation System
 
-Resilient logistics & dynamic supply chain optimization. ChainShield continuously
+Real-time disruption prediction and route optimisation for logistics teams. ChainShield continuously
 scores every in-transit shipment for disruption risk, flags problems **before**
 delivery timelines are hit, and recommends optimized route adjustments — with a
 live map, real-time alerts, team chat and an AI assistant.
 
-Fresh Flask rebuild for MCA Semester 3, fully independent of the original
-FastAPI/React prototype (left untouched in `../backend` and `../frontend`).
+Built to be deployed by any logistics company on its own server: one Docker
+container, no paid services required.
 
 ## Stack
 
@@ -15,7 +15,7 @@ Flask-SocketIO · APScheduler · Jinja2 · Bootstrap 5 · Leaflet.js · Chart.js
 Google Gemini · OpenWeatherMap · Docker (Gunicorn + eventlet)
 
 Front-end libraries are bundled in `app/static/vendor/`, so everything except the
-map tiles works **offline**. That matters for a viva on unreliable Wi-Fi.
+map tiles works **offline** — useful on sites with unreliable internet.
 
 ## Features
 
@@ -75,7 +75,7 @@ docker compose exec web flask seed-db
 | `flask init-db` | Create tables (+ additive schema patches) |
 | `flask seed-db` | Demo users, 10 hubs, cargo types, 6 shipments with operators (safe to re-run) |
 | `flask scan-risk` | Run one risk scan immediately |
-| `flask reset-demo` | Move demo shipments back to their origin hubs, clear disruptions/notifications. Run this before a viva. |
+| `flask reset-demo` | Move demo shipments back to their origin hubs, clear disruptions/notifications. Run this before a demo. |
 
 ## Configuration (`.env`)
 

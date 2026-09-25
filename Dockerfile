@@ -1,4 +1,4 @@
-# ChainShield Transportation System — MCA Sem 3 rebuild
+# ChainShield Transportation System — production image
 # Pinned to 3.10 to match the local dev venv (Python 3.10.x) so "works locally" == "works in Docker".
 FROM python:3.10-slim
 

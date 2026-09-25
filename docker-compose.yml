@@ -1,7 +1,7 @@
 services:
   web:
     build: .
-    container_name: chainshield-mca
+    container_name: chainshield
     ports:
       - "5000:5000"
     env_file:

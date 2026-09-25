@@ -1,8 +1,9 @@
 """
 ChainShield Transportation System — Flask application factory.
 
-MCA Semester 3 rebuild. This is a brand-new codebase, independent of the
-original FastAPI/React ChainShield prototype (kept untouched elsewhere).
+Real-time disruption prediction and route optimisation for logistics
+operators: builds the app, registers extensions, blueprints, the risk-scan
+scheduler, error pages and CLI commands.
 """
 import os
 from flask import Flask
@@ -43,7 +44,7 @@ def create_app(config_name=None):
 
     @app.get("/health")
     def health_check():
-        return {"status": "ok", "service": "chainshield-mca"}, 200
+        return {"status": "ok", "service": "chainshield"}, 200
 
     return app
 

@@ -5,7 +5,7 @@ With GEMINI_API_KEY set, the question plus a snapshot of the live database
 (shipments, risk scores, open disruptions and their ranked route options) is
 sent to Google Gemini. Without a key — or if the API call fails — a
 rule-based offline engine answers from the same data, so the feature always
-works in a viva/demo even without internet.
+works in a demo even without internet.
 """
 import re
 
