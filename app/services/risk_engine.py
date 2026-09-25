@@ -118,7 +118,7 @@ def _move_toward_destination(shipment) -> bool:
 def scan_shipment(shipment):
     """
     Score one shipment and persist risk_score/risk_level. Opens a Disruption
-    (with generated route solutions) when it crosses AT-RISK and doesn't
+    (with generated route solutions) when it reaches MEDIUM and doesn't
     already have one open. Does not commit. Returns the new Disruption or None.
     """
     from app.services.route_solver import generate_route_solutions

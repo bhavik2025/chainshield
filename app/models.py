@@ -84,8 +84,8 @@ class Disruption(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     shipment_id = db.Column(db.Integer, db.ForeignKey("shipments.id"), nullable=False)
-    type = db.Column(db.String(30))  # Weather / Congestion / Cargo / Historic
-    severity = db.Column(db.String(15))  # AT-RISK / MEDIUM / HIGH / CRITICAL
+    type = db.Column(db.String(30))  # dominant factor: Weather / Congestion / Cargo / History
+    severity = db.Column(db.String(15))  # MEDIUM / HIGH (escalated as risk rises)
     risk_score = db.Column(db.Float)
     status = db.Column(db.String(15), default="Open")  # Open / Resolved
     detected_at = db.Column(db.DateTime, default=datetime.utcnow)
