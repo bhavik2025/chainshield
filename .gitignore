@@ -33,3 +33,6 @@ Thumbs.db
 .idea/
 .vscode/
 ~$*
+
+# Claude-generated files (kept on this PC only)
+Claude outputs/
