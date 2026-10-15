@@ -1,14 +1,35 @@
-__pycache__/
-*.pyc
+# Secrets: never commit (repo is public). Only *.example templates are kept.
+.env
+.env.*
+*.env
+!*.env.example
+!.env.example
+!.env.*.example
+serviceAccountKey.json
+*.pem
+
+# Local databases
+*.db
+*.sqlite3
+
+# Dependencies, builds, caches
+node_modules/
+dist/
 .venv/
 .venv_test/
 venv/
 env/
-.env
-instance/*.db
-instance/*.sqlite3
+__pycache__/
+*.pyc
+.pytest_cache/
 *.log
+
+# Old git histories kept locally as a backup
+_old-git/
+
+# OS / editor
 .DS_Store
+Thumbs.db
 .idea/
 .vscode/
-node_modules/
+~$*

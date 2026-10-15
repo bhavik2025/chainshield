@@ -1,103 +1,218 @@
-# ChainShield Transportation System
+# ChainShield — Smart Supply Chain Optimizer
+### Solution Challenge 2026 | Smart Supply Chains Track
 
-Real-time disruption prediction and route optimisation for logistics teams. ChainShield continuously
-scores every in-transit shipment for disruption risk, flags problems **before**
-delivery timelines are hit, and recommends optimized route adjustments — with a
-live map, real-time alerts, team chat and an AI assistant.
+> **Real-time disruption detection and dynamic route optimization for global supply chains.**
 
-Built to be deployed by any logistics company on its own server: one Docker
-container, no paid services required.
+ChainShield continuously scores every active shipment across a 4-factor risk model, automatically flags disruptions before they cascade, and instantly generates optimized rerouting solutions for managers to deploy — all with in-app notifications to field operators.
 
-## Stack
+---
 
-Python 3.10 · Flask · Flask-SQLAlchemy · SQLite · Flask-Login · Flask-WTF ·
-Flask-SocketIO · APScheduler · Jinja2 · Bootstrap 5 · Leaflet.js · Chart.js ·
-Google Gemini · OpenWeatherMap · Docker (Gunicorn + eventlet)
+## The Problem
 
-Front-end libraries are bundled in `app/static/vendor/`, so everything except the
-map tiles works **offline** — useful on sites with unreliable internet.
+Modern global supply chains manage millions of concurrent shipments across volatile transportation networks. Critical transit disruptions — from sudden weather events to hidden operational bottlenecks — are chronically identified *only after* delivery timelines are already compromised.
 
-## Features
+## Our Solution
 
-| Module | What it does |
+ChainShield's **Risk Engine v2** scores every shipment every 60 seconds using four weighted factors:
+
+| Factor | Weight | Signal |
+|---|---|---|
+| Weather Severity | 40% | Live OpenWeatherMap data at current shipment position |
+| Route Congestion | 25% | Trade-lane baseline + shipment-specific variance |
+| Cargo Sensitivity | 20% | High-risk cargo types (Pharma, Electronics, Hazmat…) |
+| Historic Delay Probability | 15% | Destination country + transport mode history |
+
+Composite score thresholds:
+- **≥ 70 → CRITICAL/HIGH** — Disruption auto-created, solutions generated, manager alerted
+- **≥ 50 → MEDIUM** — Disruption flagged, solutions provided
+- **≥ 30 → AT RISK** — Shipment marked at-risk, monitored closely
+- **< 30 → LOW** — No action, score updated silently
+
+---
+
+## Key Features
+
+- **Live Risk Scanning** — Background scheduler runs every 60 seconds across all active shipments
+- **Dynamic Route Solutions** — 2 ranked alternatives generated per disruption (reroute vs. hold), with extra time, extra cost, and risk score for each
+- **Role-Based Dashboards** — Separate UIs for Admin, Manager, and 4 types of Field Operators (Captain, Pilot, Driver, Loco Pilot)
+- **In-App Notifications** — When a manager resolves a disruption, the assigned field operator is notified instantly
+- **Gemini AI Assistant** — Ask the ChainShield AI assistant anything about your supply chain
+- **Live World Map** — Leaflet map with animated disruption zones, shipment routes, and real-time positions
+- **Chat System** — Direct messaging between users via 5-digit chat IDs
+- **Admin Panel** — Full user management, logistics hub configuration, cargo type management, and activity audit log
+- **Demo Mode** — One-click "Trigger Demo Disruption" simulates a Port Strike at Rotterdam
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
 |---|---|
-| **Risk engine** (`services/risk_engine.py`) | Every `RISK_SCAN_INTERVAL_SECONDS` (APScheduler) scores each in-transit shipment: `0.40·weather + 0.25·congestion + 0.20·cargo sensitivity + 0.15·lane history` → LOW / AT-RISK (≥30) / MEDIUM (≥50) / HIGH (≥70). Opens a disruption at AT-RISK+, escalates it if risk keeps rising. |
-| **Route solver** (`services/route_solver.py`) | Builds hold / continue / reroute-via-hub (haversine detour) / mode-switch options and ranks them by `0.60·risk + 0.25·time + 0.15·cost`. Option #1 = recommended. |
-| **Shipments** | Full CRUD (Flask-WTF validation), detail page with mini-map, on-demand risk scan, status updates by the assigned operator. |
-| **Live map** | Leaflet map of shipments (colored by risk), hubs, routes and shaded disruption zones (radius by severity); refreshes over Socket.IO after every scan. |
-| **Disruptions** | Ranked route options per disruption; managers apply one and the assigned operator is notified. |
-| **Dashboards** | Admin overview (KPIs, 4 Chart.js charts, activity), role dashboard for managers/operators. Charts update live. |
-| **Notifications** | Stored per user + pushed live (toast + bell badge) via Socket.IO rooms. |
-| **Chat** | Direct messages between users, persisted and delivered instantly over Socket.IO. |
-| **AI assistant** | Gemini answers grounded in a live data snapshot; built-in offline engine when no key / no internet. |
-| **Admin panel** | Users (add, change role, deactivate), hubs (add/edit/delete), cargo types (CRUD with sensitivity weights), shipments, system config, activity log. |
-| **Reports** | Disruption summary, resolution time per decision-maker, activity audit log and shipment risk report — date-range filter and CSV export (admin + manager). |
-| **Demo mode** | "Trigger demo disruption" injects a severe weather event so a HIGH disruption appears instantly; `flask reset-demo` restores the demo data. |
-| **Roles** | admin · manager · captain · pilot · driver · loco_pilot. Field operators only see their assigned shipments. Admin can't be self-registered. |
+| Frontend | React 18 + Vite, Leaflet.js, Lucide icons |
+| Backend | FastAPI (Python), SQLAlchemy, SQLite |
+| Auth | JWT (local dev) + Firebase Auth (production) |
+| AI | Google Gemini API |
+| Real-time | Firebase Firestore (disruption sync) |
+| Scheduling | APScheduler (background risk scan) |
+| Weather | OpenWeatherMap API (with simulation fallback) |
+| Deployment | Frontend → Vercel, Backend → Render (Docker) |
 
-## Run locally (Windows)
+---
 
-```bat
-cd chainshield-mca
-.venv\Scripts\activate
-pip install -r requirements.txt
-copy .env.example .env          &:: first time only; add GEMINI_API_KEY for Gemini
-flask init-db
-flask seed-db
-python wsgi.py                  &:: or: flask run
-```
+## Quick Start (Local Development)
 
-Open http://localhost:5000. Use `python wsgi.py` for real websockets; `flask run` also works because Socket.IO falls back to polling.
+### Prerequisites
+- Python 3.10+
+- Node.js 18+ and npm
 
-## Run with Docker
+### 1 · Backend (FastAPI)
 
 ```bash
-docker compose up --build
-docker compose exec web flask init-db
-docker compose exec web flask seed-db
+cd "Solution Challenge/backend"
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Start the server
+python -m uvicorn main:app --reload --port 8000
 ```
 
-## Demo accounts (password `demo1234`)
+API live at **http://localhost:8000** · Docs at **http://localhost:8000/docs**
 
-| Email | Role | Sees |
+> Optional: add `OPENWEATHER_API_KEY=your_key` to `.env` for live weather data.  
+> Without a key the risk engine uses realistic simulation — fully functional.
+
+### 2 · Frontend (React + Vite)
+
+```bash
+cd "Solution Challenge/frontend"
+
+# Install Node dependencies (first time only)
+npm install
+
+# Start the dev server
+npm run dev
+```
+
+App live at **http://localhost:5173**
+
+---
+
+## Demo Accounts
+
+| Role | Email | Password |
 |---|---|---|
-| admin@chainshield.com | admin | everything + admin panel |
-| manisha@chainshield.com | manager | all shipments, resolves disruptions |
-| suresh@chainshield.com | driver | Road shipments assigned to him |
-| ajay@chainshield.com | loco_pilot | Rail shipments |
-| rohit@chainshield.com | pilot | Air shipments |
-| karan@chainshield.com | captain | Sea shipments |
+| Admin | admin@chainshield.com | demo1234 |
+| Manager | manager@chainshield.com | demo1234 |
+| Captain (Field) | captain@chainshield.com | demo1234 |
+| Pilot (Field) | pilot@chainshield.com | demo1234 |
+| Driver (Field) | driver@chainshield.com | demo1234 |
+| Loco Pilot (Field) | loco@chainshield.com | demo1234 |
 
-## CLI commands
+---
 
-| Command | Purpose |
-|---|---|
-| `flask init-db` | Create tables (+ additive schema patches) |
-| `flask seed-db` | Demo users, 10 hubs, cargo types, 6 shipments with operators (safe to re-run) |
-| `flask scan-risk` | Run one risk scan immediately |
-| `flask reset-demo` | Move demo shipments back to their origin hubs, clear disruptions/notifications. Run this before a demo. |
+## Demo Walkthrough
 
-## Configuration (`.env`)
+1. Log in as **Manager** (`manager@chainshield.com / demo1234`)
+2. Click **"Trigger Demo Disruption"** — simulates a Port Strike at Rotterdam
+3. The disruption appears on the map and in the Alerts panel
+4. Click **"View & Resolve"** → choose a solution (e.g. Divert to Antwerp)
+5. Switch to a **Field Operator** account — they receive an instant in-app notification with the selected solution
+6. Log in as **Admin** to see the full activity audit trail
 
-`SECRET_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-2.5-flash`),
-`OPENWEATHER_API_KEY`, `RISK_SCAN_INTERVAL_SECONDS` (default 60),
-`SIMULATE_MOVEMENT` (default true: shipments move toward their destination each
-scan), `MOVEMENT_STEP_DEG` (default 0.15).
+---
 
-## Layout
+## Project Structure
 
 ```
-app/
-├── __init__.py        app factory, scheduler, CLI commands
-├── config.py          dev / testing / production config
-├── extensions.py      db, login, csrf, socketio, scheduler
-├── models.py          User, Hub, CargoType, Shipment, Disruption,
-│                      RouteSolution, Notification, Message, ActivityLog
-├── forms.py           Flask-WTF forms
-├── sockets.py         Socket.IO connect → per-user rooms
-├── blueprints/        main (dashboards + admin), auth, shipments (+ live map),
-│                      disruptions, notifications, chat, assistant
-├── services/          risk_engine, route_solver, weather, notifier, stats, assistant
-├── templates/
-└── static/            css, js, vendor/ (bootstrap, leaflet, chart.js, socket.io)
+Solution Challenge/
+├── backend/                    FastAPI Python backend
+│   ├── main.py                 App entry point + scheduler setup
+│   ├── models.py               SQLAlchemy DB models
+│   ├── schemas.py              Pydantic request/response schemas
+│   ├── seed.py                 DB seed (demo accounts + lookup data)
+│   ├── auth.py                 JWT + Firebase auth middleware
+│   ├── services/
+│   │   ├── risk_engine.py      4-Factor risk scoring + disruption creation
+│   │   ├── weather.py          OpenWeatherMap integration
+│   │   └── route.py            Waypoint builder + position interpolation
+│   └── routers/
+│       ├── shipments.py        Shipment CRUD + operator status updates
+│       ├── disruptions.py      Disruption detection + resolution
+│       ├── admin.py            User, hub, cargo management + activity log
+│       ├── notifications.py    In-app notification delivery
+│       ├── chat.py             Direct messaging between users
+│       └── gemini.py           Gemini AI assistant endpoint
+│
+└── frontend/                   React + Vite dashboard
+    └── src/
+        ├── pages/
+        │   ├── AdminDashboard.jsx      Full admin control panel
+        │   ├── ManagerDashboard.jsx    Shipment map + disruption resolution
+        │   ├── FieldDashboard.jsx      Operator view + status updates
+        │   └── NewTransportPage.jsx    Create new shipment form
+        ├── components/
+        │   ├── MapView.jsx             Leaflet world map (live shipments + disruptions)
+        │   ├── KPICards.jsx            Dashboard summary metrics
+        │   ├── ShipmentList.jsx        Filterable shipment table
+        │   ├── AlertModal.jsx          Disruption resolution modal with solutions
+        │   ├── GeminiAssistant.jsx     AI chat assistant
+        │   ├── ChatModal.jsx           Direct messaging UI
+        │   └── NotificationPanel.jsx   In-app notification feed
+        ├── context/
+        │   ├── AppContext.jsx           Global state + API polling (30s refresh)
+        │   └── AuthContext.jsx          Auth state + JWT management
+        └── utils/
+            └── api.js                  API client (JWT bearer auth)
 ```
+
+---
+
+## Deployment
+
+### Frontend → Vercel
+1. Push `frontend/` to GitHub
+2. Import repo at [vercel.com](https://vercel.com)
+3. Set env var: `VITE_API_URL=https://<your-render-url>`
+4. Deploy
+
+### Backend → Render
+1. Push `backend/` to GitHub
+2. Create new Web Service on [render.com](https://render.com) using the included `Dockerfile`
+3. Set env vars: `GEMINI_API_KEY`, `OPENWEATHER_API_KEY`, `CORS_ORIGINS`
+4. Deploy
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Frontend (React)                          │
+│  Manager Dashboard  │  Admin Panel  │  Field Operator Dashboard  │
+│         └─────── 30s polling + real-time Firestore sync ────────┤
+└────────────────────────────┬────────────────────────────────────┘
+                             │ REST API (JWT)
+┌────────────────────────────▼────────────────────────────────────┐
+│                      Backend (FastAPI)                           │
+│                                                                  │
+│  ┌─────────────┐   ┌──────────────┐   ┌──────────────────────┐  │
+│  │ Risk Engine │   │ Route Solver │   │   Gemini AI (chat)   │  │
+│  │  (60s scan) │   │  (waypoints) │   │                      │  │
+│  └──────┬──────┘   └──────────────┘   └──────────────────────┘  │
+│         │                                                        │
+│  ┌──────▼──────────────────────────────────────────────────┐    │
+│  │              SQLite DB  (shipments, disruptions,         │    │
+│  │               users, notifications, messages, logs)      │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+         │                           │
+┌────────▼────────┐        ┌─────────▼────────┐
+│  OpenWeatherMap │        │  Firebase/Firestore│
+│  (live weather) │        │  (real-time sync)  │
+└─────────────────┘        └──────────────────┘
+```
+
+---
+
+*Built for Google Solution Challenge 2026 — Smart Supply Chains Track*
