@@ -19,5 +19,8 @@ RUN mkdir -p instance
 
 EXPOSE 5000
 
-# eventlet worker so Flask-SocketIO's websocket support works under Gunicorn.
-CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:5000", "wsgi:app"]
+# On start: create tables and seed demo data (both safe to re-run, they skip what
+# already exists), then serve. eventlet worker so Flask-SocketIO's websockets work
+# under Gunicorn. Binds to $PORT when the host sets one (Render does), else 5000.
+CMD flask init-db && flask seed-db && \
+    exec gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:${PORT:-5000} wsgi:app

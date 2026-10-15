@@ -1,25 +1,30 @@
+# Render Blueprint for the ChainShield Flask app (the ChainShield/ folder).
+# Render dashboard -> New -> Blueprint -> pick this repo. Secrets marked
+# `sync: false` are asked for once in the dashboard and never stored here.
 services:
   - type: web
-    name: chainshield-api
+    name: chainshield
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
     plan: free
-    healthCheckPath: /health
+    dockerfilePath: ./ChainShield/Dockerfile
+    dockerContext: ./ChainShield
+    # Only redeploy when the app itself changes, not the docs.
+    buildFilter:
+      paths:
+        - ChainShield/**
+    healthCheckPath: /auth/login
     envVars:
+      - key: FLASK_CONFIG
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
       - key: GEMINI_API_KEY
         sync: false
       - key: OPENWEATHER_API_KEY
         sync: false
-      - key: JWT_SECRET
-        generateValue: true
-      - key: JWT_ALGORITHM
-        value: HS256
-      - key: JWT_EXPIRE_MINUTES
-        value: "1440"
-      - key: DATABASE_URL
-        value: sqlite:///./chainshield.db
-      - key: CORS_ORIGINS
-        sync: false
-      - key: PORT
-        value: "8000"
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: RISK_SCAN_INTERVAL_SECONDS
+        value: "60"
+      - key: SIMULATE_MOVEMENT
+        value: "true"
