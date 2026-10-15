@@ -266,7 +266,7 @@ def register_cli(app):
                          current_lat=12.97, current_lng=78.20, hub_id=bengaluru.id),
                     dict(tracking_no="CS-1005", origin="Surat", destination="Kolkata",
                          cargo_type_id=general.id, transport_mode="Sea", cargo_value=210000,
-                         current_lat=21.5, current_lng=75.0, hub_id=surat.id),
+                         current_lat=18.9, current_lng=72.6, hub_id=surat.id),
                     dict(tracking_no="CS-1006", origin="Jaipur", destination="Ahmedabad",
                          cargo_type_id=perishable.id, transport_mode="Road", cargo_value=31000,
                          current_lat=25.5, current_lng=74.5, hub_id=jaipur.id),

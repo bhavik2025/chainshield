@@ -63,8 +63,8 @@
     data.shipments.forEach((s) => {
       if (s.status === "Delivered" && !showDelivered.checked) return;
       if (s.origin_pos && s.dest_pos && s.status !== "Delivered") {
-        L.polyline([s.origin_pos, [s.lat, s.lng]], { color: s.color, weight: 3, opacity: .85 }).addTo(routeLayer);
-        L.polyline([[s.lat, s.lng], s.dest_pos], { color: s.color, weight: 2, opacity: .5, dashArray: "6 7" }).addTo(routeLayer);
+        L.polyline(s.travelled, { color: s.color, weight: 3, opacity: .85 }).addTo(routeLayer);
+        L.polyline(s.remaining, { color: s.color, weight: 2, opacity: .5, dashArray: "6 7" }).addTo(routeLayer);
       }
       L.circleMarker([s.lat, s.lng], { radius: 9, color: "#fff", weight: 2.5, fillColor: s.color, fillOpacity: 1 })
         .addTo(shipLayer)

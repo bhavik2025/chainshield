@@ -7,6 +7,7 @@ from app.extensions import db, socketio
 from app.forms import ShipmentForm, StatusUpdateForm
 from app.models import Shipment, Hub, CargoType, User, Disruption, ActivityLog
 from app.services.risk_engine import scan_shipment, hub_for_city, _alert
+from app.services.sea_route import route_path, split_at
 
 shipments_bp = Blueprint("shipments", __name__)
 
@@ -121,8 +122,13 @@ def detail(shipment_id):
     status_form = StatusUpdateForm(status=shipment.status)
     dest_hub = hub_for_city(shipment.destination)
     origin_hub = hub_for_city(shipment.origin)
+    route = route_path(shipment.transport_mode, (origin_hub.lat, origin_hub.lng), (dest_hub.lat, dest_hub.lng)) \
+        if origin_hub and dest_hub and origin_hub.lat is not None and dest_hub.lat is not None else []
+    pos = (shipment.current_lat, shipment.current_lng) if shipment.current_lat is not None else None
+    if pos and shipment.transport_mode == "Sea" and len(route) > 1:
+        pos = split_at(route, pos)[0][-1]
     return render_template("shipments/detail.html", s=shipment, disruptions=disruptions,
-                           status_form=status_form, origin_hub=origin_hub, dest_hub=dest_hub,
+                           status_form=status_form, origin_hub=origin_hub, dest_hub=dest_hub, route=route, pos=pos,
                            risk_color=RISK_COLORS.get(shipment.risk_level, "#6c757d"))
 
 
@@ -217,6 +223,13 @@ def live_data():
         if s.current_lat is None:
             continue
         o, d = hub_for_city(s.origin), hub_for_city(s.destination)
+        travelled, remaining = [], []
+        if o and o.lat is not None and d and d.lat is not None:
+            path = route_path(s.transport_mode, (o.lat, o.lng), (d.lat, d.lng))
+            travelled, remaining = split_at(path, (s.current_lat, s.current_lng))
+        # A Sea shipment saved off the lane (e.g. from before sea lanes existed)
+        # is shown at its nearest point on the lane, so the marker never sits inland.
+        lat, lng = travelled[-1] if s.transport_mode == "Sea" and travelled else (s.current_lat, s.current_lng)
         shipments.append({
             "id": s.id,
             "tracking_no": s.tracking_no,
@@ -227,24 +240,26 @@ def live_data():
             "risk_level": s.risk_level or "LOW",
             "risk_score": s.risk_score or 0,
             "color": RISK_COLORS.get(s.risk_level or "LOW", "#6c757d"),
-            "lat": s.current_lat,
-            "lng": s.current_lng,
+            "lat": lat,
+            "lng": lng,
             "origin_pos": [o.lat, o.lng] if o and o.lat is not None else None,
             "dest_pos": [d.lat, d.lng] if d and d.lat is not None else None,
+            "travelled": travelled,
+            "remaining": remaining,
             "url": url_for("shipments.detail", shipment_id=s.id),
         })
     hubs = [{"name": h.name, "location": h.location, "lat": h.lat, "lng": h.lng}
             for h in Hub.query.all() if h.lat is not None]
 
     # Disruption zones: a shaded radius around each open disruption, sized by severity.
-    visible = {s["id"] for s in shipments}
+    visible = {s["id"]: (s["lat"], s["lng"]) for s in shipments}
     zones = []
     for d in Disruption.query.filter_by(status="Open").all():
         s = d.shipment
         if s.id not in visible or s.current_lat is None:
             continue
         zones.append({
-            "lat": s.current_lat, "lng": s.current_lng,
+            "lat": visible[s.id][0], "lng": visible[s.id][1],
             "radius_km": ZONE_RADIUS_KM.get(d.severity, 50),
             "color": RISK_COLORS.get(d.severity, "#dc3545"),
             "label": f"{d.type} disruption · {d.severity} ({d.risk_score}) · {s.tracking_no}",

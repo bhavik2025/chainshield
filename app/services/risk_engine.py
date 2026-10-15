@@ -97,22 +97,34 @@ def _move_toward_destination(shipment) -> bool:
     """
     Simulated GPS step: move the shipment MOVEMENT_STEP_DEG degrees toward its
     destination hub. Marks it Delivered on arrival. Returns True if delivered.
+    Sea shipments move along the coastal sea lane instead of a straight line.
     """
     dest = hub_for_city(shipment.destination)
     if not dest or dest.lat is None or shipment.current_lat is None:
         return False
     step = current_app.config.get("MOVEMENT_STEP_DEG", 0.15)
-    dlat = dest.lat - shipment.current_lat
-    dlng = dest.lng - shipment.current_lng
-    dist = math.hypot(dlat, dlng)
-    if dist <= step:
-        shipment.current_lat, shipment.current_lng = dest.lat, dest.lng
-        shipment.status = "Delivered"
-        shipment.risk_level, shipment.risk_score = "LOW", 0.0
-        return True
-    shipment.current_lat = round(shipment.current_lat + dlat / dist * step, 5)
-    shipment.current_lng = round(shipment.current_lng + dlng / dist * step, 5)
-    return False
+    if shipment.transport_mode == "Sea":
+        from app.services.sea_route import route_path, advance
+        origin = hub_for_city(shipment.origin)
+        start = (origin.lat, origin.lng) if origin and origin.lat is not None \
+            else (shipment.current_lat, shipment.current_lng)
+        path = route_path("Sea", start, (dest.lat, dest.lng))
+        (lat, lng), arrived = advance(path, (shipment.current_lat, shipment.current_lng), step)
+        if not arrived:
+            shipment.current_lat, shipment.current_lng = round(lat, 5), round(lng, 5)
+            return False
+    else:
+        dlat = dest.lat - shipment.current_lat
+        dlng = dest.lng - shipment.current_lng
+        dist = math.hypot(dlat, dlng)
+        if dist > step:
+            shipment.current_lat = round(shipment.current_lat + dlat / dist * step, 5)
+            shipment.current_lng = round(shipment.current_lng + dlng / dist * step, 5)
+            return False
+    shipment.current_lat, shipment.current_lng = dest.lat, dest.lng
+    shipment.status = "Delivered"
+    shipment.risk_level, shipment.risk_score = "LOW", 0.0
+    return True
 
 
 def scan_shipment(shipment):

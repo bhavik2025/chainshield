@@ -83,7 +83,7 @@
 <script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
 <script>
 (function () {
-  const pos = {{ [s.current_lat, s.current_lng] | tojson if s.current_lat is not none else "null" }};
+  const pos = {{ pos | tojson }};
   const origin = {{ [origin_hub.lat, origin_hub.lng] | tojson if origin_hub else "null" }};
   const dest = {{ [dest_hub.lat, dest_hub.lng] | tojson if dest_hub else "null" }};
   const map = L.map("miniMap", { zoomControl: true }).setView(pos || origin || [22.5, 78.9], 5);
@@ -92,7 +92,8 @@
   const pts = [];
   if (origin) { L.marker(origin, { icon: hubIcon("bi-box-arrow-up-right") }).addTo(map).bindTooltip("Origin: {{ s.origin }}"); pts.push(origin); }
   if (dest) { L.marker(dest, { icon: hubIcon("bi-flag-fill") }).addTo(map).bindTooltip("Destination: {{ s.destination }}"); pts.push(dest); }
-  if (origin && dest) L.polyline([origin, dest], { color: "#6366f1", dashArray: "6 8", weight: 2.5, opacity: .8 }).addTo(map);
+  const route = {{ route | tojson }};
+  if (route.length > 1) L.polyline(route, { color: "#6366f1", dashArray: "6 8", weight: 2.5, opacity: .8 }).addTo(map);
   if (pos) {
     L.circleMarker(pos, { radius: 11, color: "#fff", weight: 3, fillColor: "{{ risk_color }}", fillOpacity: 1 })
       .addTo(map).bindPopup("<strong>{{ s.tracking_no }}</strong><br>{{ s.risk_level }} risk").openPopup();
