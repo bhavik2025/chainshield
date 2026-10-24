@@ -25,6 +25,7 @@ map tiles works **offline** — useful on sites with unreliable internet.
 | **Route solver** (`services/route_solver.py`) | Builds hold / continue / reroute-via-hub (haversine detour) / mode-switch options and ranks them by `0.60·risk + 0.25·time + 0.15·cost`. Option #1 = recommended. |
 | **Shipments** | Full CRUD (Flask-WTF validation), detail page with mini-map, on-demand risk scan, status updates by the assigned operator. |
 | **Live map** | Leaflet map of shipments (colored by risk), hubs, routes and shaded disruption zones (radius by severity); refreshes over Socket.IO after every scan. |
+| **Sea routing** (`services/sea_route.py`) | Sea shipments follow the shortest route over water to any hub in the world (the `searoute` package: Dijkstra over Eurostat's MARNET network of shipping lanes, straits and canals, offline). Road, Rail and Air use a straight line. |
 | **Disruptions** | Ranked route options per disruption; managers apply one and the assigned operator is notified. |
 | **Dashboards** | Admin overview (KPIs, 4 Chart.js charts, activity), role dashboard for managers/operators. Charts update live. |
 | **Notifications** | Stored per user + pushed live (toast + bell badge) via Socket.IO rooms. |
@@ -83,8 +84,8 @@ docker compose exec web flask seed-db
 python tests\smoke_test.py
 ```
 
-153 end-to-end checks (in-memory database, no internet needed): risk formula and
-thresholds, disruption opening/escalation, route solver, every page for each
+159 end-to-end checks (in-memory database, no internet needed): risk formula and
+thresholds, disruption opening/escalation, route solver, sea routing, every page for each
 role, admin CRUD, validation, demo mode, resolving, chat, Socket.IO, assistant,
 CSV reports, deactivation and simulated movement. Exits with code 1 on failure.
 
@@ -108,7 +109,7 @@ app/
 ├── sockets.py         Socket.IO connect → per-user rooms
 ├── blueprints/        main (dashboards + admin), auth, shipments (+ live map),
 │                      disruptions, notifications, chat, assistant
-├── services/          risk_engine, route_solver, weather, notifier, stats, assistant
+├── services/          risk_engine, route_solver, sea_route, weather, notifier, stats, assistant
 ├── templates/
 └── static/            css, js, vendor/ (bootstrap, leaflet, chart.js, socket.io)
 ```

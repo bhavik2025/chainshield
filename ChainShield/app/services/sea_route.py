@@ -1,50 +1,50 @@
 """
-Sea lanes — keeps Sea shipments on water instead of a straight line over land.
+Sea routes — Sea shipments follow the shortest shipping route over water.
 
-Ships follow a fixed coastal lane (west coast, around Sri Lanka, up the east
-coast to the Hooghly). A Sea route is: origin hub -> nearest lane point ->
-along the lane -> lane point nearest the destination -> destination hub.
+The route comes from the searoute package: a shortest-path (Dijkstra) search
+over Eurostat's MARNET global maritime network of shipping lanes, straits and
+canals. So a ship from Mumbai to Sydney goes round Sri Lanka and through the
+Indonesian straits, and one to Rotterdam goes through Suez, without crossing
+land. It works for any hub in the world and needs no internet connection.
+A Sea route is: origin hub -> shipping lanes -> destination hub.
 Road, Rail and Air keep the straight origin -> destination line.
 
 Distances here are in plain degrees, the same unit as MOVEMENT_STEP_DEG.
 """
 import math
+from functools import lru_cache
 
-# Offshore waypoints, ordered north-west -> south -> north-east.
-SEA_LANE = [
-    (22.6, 69.9),   # Gulf of Kutch (Kandla)
-    (21.5, 69.3),   # off Porbandar
-    (20.6, 70.9),   # off Diu
-    (20.6, 72.2),   # Gulf of Khambhat mouth (Surat / Hazira)
-    (18.9, 72.6),   # off Mumbai
-    (15.4, 73.5),   # off Goa
-    (12.9, 74.5),   # off Mangaluru
-    (9.9, 75.9),    # off Kochi
-    (7.6, 77.2),    # off Kanyakumari
-    (6.3, 79.6),    # off Colombo
-    (5.6, 80.6),    # south of Sri Lanka (Dondra Head)
-    (6.3, 82.0),    # off Hambantota
-    (7.8, 82.0),    # off Batticaloa
-    (9.0, 81.6),    # off Trincomalee
-    (10.5, 80.6),   # off Point Pedro
-    (13.1, 80.5),   # off Chennai
-    (15.8, 81.6),   # off Krishna delta
-    (17.6, 83.6),   # off Visakhapatnam
-    (19.5, 86.0),   # off Puri
-    (20.6, 87.6),   # off Dhamra
-    (21.3, 88.1),   # Sandheads, Hooghly mouth
-    (21.8, 88.05),  # Sagar Island
-    (22.2, 88.15),  # Diamond Harbour
-    (22.4, 88.25),  # up the Hooghly to Kolkata
-]
+import searoute
 
 
 def _dist(a, b):
     return math.hypot(b[0] - a[0], b[1] - a[1])
 
 
-def _nearest_lane_index(point):
-    return min(range(len(SEA_LANE)), key=lambda i: _dist(point, SEA_LANE[i]))
+def _wrap(lng):
+    """Longitude in [-180, 180)."""
+    return (lng + 180) % 360 - 180
+
+
+def _near(lng, ref):
+    """lng shifted by whole turns so it is within 180 degrees of ref."""
+    return lng - 360 * round((lng - ref) / 360)
+
+
+@lru_cache(maxsize=256)
+def _sea_path(origin, dest):
+    """Shortest sea route as (lat, lng) points, cached per origin/destination pair."""
+    try:
+        line = searoute.searoute((origin[1], origin[0]), (dest[1], dest[0]))
+        lanes = [(lat, lng) for lng, lat in line["geometry"]["coordinates"]]
+    except Exception:  # no route found in the network: fall back to a straight line
+        lanes = []
+    # Keep each longitude within 180 degrees of the previous point, so a route
+    # across the Pacific doesn't jump from +180 to -180 on the map.
+    path = [origin]
+    for lat, lng in lanes + [dest]:
+        path.append((lat, _near(lng, path[-1][1])))
+    return path
 
 
 def route_path(mode, origin, dest):
@@ -53,13 +53,13 @@ def route_path(mode, origin, dest):
         return [p for p in (origin, dest) if p is not None]
     if mode != "Sea":
         return [origin, dest]
-    i, j = _nearest_lane_index(origin), _nearest_lane_index(dest)
-    lane = SEA_LANE[i:j + 1] if i <= j else SEA_LANE[j:i + 1][::-1]
-    return [tuple(origin)] + list(lane) + [tuple(dest)]
+    return list(_sea_path((origin[0], origin[1]), (dest[0], dest[1])))
 
 
 def project(path, pos):
     """Snap pos onto the path. Returns (segment index, snapped point)."""
+    # Positions are stored in [-180, 180); a route across the Pacific runs past 180.
+    pos = min(((pos[0], pos[1] + s) for s in (0, 360, -360)), key=lambda p: min(_dist(p, v) for v in path))
     best = (float("inf"), 0, tuple(path[0]))
     for k in range(len(path) - 1):
         a, b = path[k], path[k + 1]
@@ -89,7 +89,7 @@ def advance(path, pos, step):
         d = _dist(cur, target)
         if d > remaining:
             f = remaining / d
-            return (cur[0] + (target[0] - cur[0]) * f, cur[1] + (target[1] - cur[1]) * f), False
+            return (cur[0] + (target[0] - cur[0]) * f, _wrap(cur[1] + (target[1] - cur[1]) * f)), False
         remaining -= d
         cur = target
-    return tuple(path[-1]), True
+    return (path[-1][0], _wrap(path[-1][1])), True

@@ -70,7 +70,7 @@ cli.invoke(args=["seed-db"])
 ctx = app.app_context()
 ctx.push()
 
-from app.services import risk_engine  # noqa: E402
+from app.services import risk_engine, sea_route  # noqa: E402
 from app.services.risk_engine import classify_risk, compute_risk_score, scan_all_shipments, scan_shipment  # noqa: E402
 from app.services.route_solver import build_candidates, haversine_km  # noqa: E402
 
@@ -149,6 +149,23 @@ db.session.flush()
 check("an Air shipment gets no mode-switch option",
       not any(c["description"].startswith("Switch") for c in build_candidates(air_d)))
 db.session.rollback()
+
+print("\n== Sea routing")
+mumbai_hub, sydney = (19.08, 72.88), (-33.8688, 151.2093)
+sea = sea_route.route_path("Sea", mumbai_hub, sydney)
+check("a Sea route follows shipping lanes, not a straight line", len(sea) > 10)
+check("Mumbai to Sydney rounds the south of Sri Lanka", any(lat < 6.5 and 79 < lng < 83 for lat, lng in sea))
+check("Mumbai to Sydney never crosses mainland Australia",
+      not any(-30 < lat < -20 and 120 < lng < 145 for lat, lng in sea))
+pos, arrived, steps = mumbai_hub, False, 0
+while not arrived and steps < 5000:
+    pos, arrived = sea_route.advance(sea, pos, 0.15)
+    steps += 1
+check("a ship sails the whole route to Sydney and arrives", arrived and abs(pos[0] - sydney[0]) < 1e-6)
+pacific = sea_route.route_path("Sea", (13.08, 80.27), (33.74, -118.24))
+check("a route across the Pacific has no jump at 180 degrees",
+      all(abs(b[1] - a[1]) < 180 for a, b in zip(pacific, pacific[1:])))
+check("Road, Rail and Air keep the straight line", sea_route.route_path("Air", mumbai_hub, sydney) == [mumbai_hub, sydney])
 
 # --------------------------------------------------- public pages + auth
 print("\n== Public pages and login")
