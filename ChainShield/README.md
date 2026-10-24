@@ -21,7 +21,7 @@ map tiles works **offline** — useful on sites with unreliable internet.
 
 | Module | What it does |
 |---|---|
-| **Risk engine** (`services/risk_engine.py`) | Every `RISK_SCAN_INTERVAL_SECONDS` (APScheduler) scores each in-transit shipment: `0.40·weather + 0.25·congestion + 0.20·cargo sensitivity + 0.15·lane history` → LOW / AT-RISK (≥30) / MEDIUM (≥50) / HIGH (≥70). Opens a disruption at AT-RISK+, escalates it if risk keeps rising. |
+| **Risk engine** (`services/risk_engine.py`) | Every `RISK_SCAN_INTERVAL_SECONDS` (APScheduler) scores each in-transit shipment: `0.40·weather + 0.25·congestion + 0.20·cargo sensitivity + 0.15·lane history` → LOW / AT-RISK (≥30) / MEDIUM (≥50) / HIGH (≥70). AT-RISK shipments are only watched; a disruption opens at MEDIUM+ and is escalated, with re-planned options, at HIGH. |
 | **Route solver** (`services/route_solver.py`) | Builds hold / continue / reroute-via-hub (haversine detour) / mode-switch options and ranks them by `0.60·risk + 0.25·time + 0.15·cost`. Option #1 = recommended. |
 | **Shipments** | Full CRUD (Flask-WTF validation), detail page with mini-map, on-demand risk scan, status updates by the assigned operator. |
 | **Live map** | Leaflet map of shipments (colored by risk), hubs, routes and shaded disruption zones (radius by severity); refreshes over Socket.IO after every scan. |
@@ -76,6 +76,17 @@ docker compose exec web flask seed-db
 | `flask seed-db` | Demo users, 10 hubs, cargo types, 6 shipments with operators (safe to re-run) |
 | `flask scan-risk` | Run one risk scan immediately |
 | `flask reset-demo` | Move demo shipments back to their origin hubs, clear disruptions/notifications. Run this before a demo. |
+
+## Tests
+
+```bat
+python tests\smoke_test.py
+```
+
+153 end-to-end checks (in-memory database, no internet needed): risk formula and
+thresholds, disruption opening/escalation, route solver, every page for each
+role, admin CRUD, validation, demo mode, resolving, chat, Socket.IO, assistant,
+CSV reports, deactivation and simulated movement. Exits with code 1 on failure.
 
 ## Configuration (`.env`)
 

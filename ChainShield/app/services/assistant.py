@@ -144,7 +144,7 @@ def offline_answer(user, question: str) -> str:
                 "• 25% congestion for its transport mode\n"
                 "• 20% cargo sensitivity (e.g. Hazardous 0.9, Perishable 0.7)\n"
                 "• 15% disruption history on the same lane (last 90 days)\n"
-                "≥70 HIGH, ≥50 MEDIUM, ≥30 AT-RISK, else LOW. At AT-RISK or above a disruption is opened "
+                "≥70 HIGH, ≥50 MEDIUM, ≥30 AT-RISK, else LOW. At MEDIUM or above a disruption is opened (and escalated at HIGH) "
                 "and the route solver ranks hold / reroute / mode-switch options by risk, time and cost.")
 
     if any(k in q for k in ("recommend", "what should", "suggest", "reroute", "action", "do now", "priority")):

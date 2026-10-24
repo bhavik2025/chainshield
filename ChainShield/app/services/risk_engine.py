@@ -9,7 +9,8 @@ Each scan pass (run by APScheduler every RISK_SCAN_INTERVAL_SECONDS):
   1. moves every in-transit shipment one step toward its destination hub
      (simulated GPS feed, so the live map moves during a demo),
   2. re-scores it with the four factors,
-  3. opens a Disruption + ranked route solutions when it crosses AT-RISK,
+  3. opens a Disruption + ranked route solutions when it reaches MEDIUM
+     (and escalates it, re-planning the options, when it reaches HIGH),
   4. notifies admins, managers and the assigned operator in real time,
   5. broadcasts "shipments_updated" so every open map/dashboard refreshes.
 """
