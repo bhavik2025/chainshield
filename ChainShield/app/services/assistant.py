@@ -88,7 +88,7 @@ def ask(user, question: str, history=None) -> dict:
             return {"answer": answer, "source": "gemini"}
         except Exception as exc:  # network down, bad key, quota, model retired...
             current_app.logger.warning("Gemini call failed, using offline engine: %s", exc)
-            _set_status(False, str(exc)[:600])
+            _set_status(False, str(exc)[:1500])
             answer = offline_answer(user, question)
             return {"answer": answer + "\n\n(Gemini unavailable — answered by the offline engine.)", "source": "offline"}
     return {"answer": offline_answer(user, question), "source": "offline"}
@@ -134,7 +134,7 @@ def _call_endpoint(kind, api_key, model, prompt):
     return text
 
 
-def _backup_models(api_key, primary, limit=3):
+def _backup_models(api_key, primary, limit=4):
     """Other "flash" models this key can use (asked from Google once, then cached).
     Used when the configured model is overloaded (HTTP 503) or rate-limited (429)."""
     import requests
@@ -151,8 +151,13 @@ def _backup_models(api_key, primary, limit=3):
                     names.append(name)
         except Exception:
             names = []
-        # Newest first: higher version numbers sort later alphabetically.
-        _model_cache["list"] = sorted(set(names), reverse=True)
+        # Stable models before previews (previews often have no free quota),
+        # then "lite" models (usually less busy), newest version first.
+        def rank(n):
+            import re
+            ver = [int(x) for x in re.findall(r"\d+", n)[:2]] or [0]
+            return ("preview" in n or "omni" in n, "lite" not in n, [-v for v in ver])
+        _model_cache["list"] = sorted(set(names), key=rank)
     return [n for n in _model_cache["list"] if n != primary][:limit]
 
 
