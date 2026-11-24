@@ -20,7 +20,8 @@ SYSTEM_PROMPT = (
     "Be concise (under 150 words), use short bullet points where helpful, cite tracking numbers, "
     "and when asked what to do, recommend the ranked option #1 unless the data suggests otherwise, "
     "explaining the trade-off (extra time, extra cost in ₹, residual risk). If the data does not "
-    "contain the answer, say so plainly."
+    "contain the answer, say so plainly. Write plain text with simple markdown only (**bold**, "
+    "bullets); never use LaTeX or $...$ maths, write symbols like ≥ and ≤ directly."
 )
 
 
