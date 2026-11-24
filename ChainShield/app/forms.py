@@ -12,7 +12,8 @@ class ShipmentForm(FlaskForm):
                               description="Leave blank to auto-generate (CS-xxxx).")
     origin = SelectField("Origin city", validators=[DataRequired()])
     destination = SelectField("Destination city", validators=[DataRequired()])
-    transport_mode = SelectField("Transport mode", choices=TRANSPORT_MODES, validators=[DataRequired()])
+    transport_mode = SelectField("Transport mode", choices=TRANSPORT_MODES, validators=[DataRequired()],
+                                 description="Sea needs a port city at both ends (e.g. Mumbai, Surat, Chennai, Kolkata).")
     cargo_type_id = SelectField("Cargo type", coerce=int, validators=[DataRequired()])
     cargo_value = FloatField("Cargo value (₹)", validators=[Optional(), NumberRange(min=0)], default=0)
     status = SelectField("Status", choices=SHIPMENT_STATUSES, default="In-transit")

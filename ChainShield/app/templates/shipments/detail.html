@@ -31,7 +31,7 @@
           ("Operator", (s.assigned_operator.name ~ " (" ~ s.assigned_operator.role|replace('_', ' ') ~ ")") if s.assigned_operator else "Unassigned", "bi-person"),
           ("Origin hub", s.hub.name if s.hub else "—", "bi-geo-alt"),
           ("Position", ("%.4f, %.4f"|format(s.current_lat, s.current_lng)) if s.current_lat is not none else "—", "bi-crosshair"),
-          ("Created", s.created_at.strftime("%d %b %Y, %H:%M") if s.created_at else "—", "bi-calendar3"),
+          ("Created", (s.created_at|local).strftime("%d %b %Y, %H:%M") if s.created_at else "—", "bi-calendar3"),
         ] %}
         <div class="col-6">
           <div class="text-muted mb-1"><i class="bi {{ icon }} me-1"></i>{{ label }}</div>
@@ -67,7 +67,7 @@
     {% for d in disruptions %}
       {% set chosen = d.solutions|selectattr('selected')|list %}
       <tr>
-        <td class="small">{{ d.detected_at.strftime("%d %b %Y, %H:%M") }}</td>
+        <td class="small">{{ (d.detected_at|local).strftime("%d %b %Y, %H:%M") }}</td>
         <td><span class="tag">{{ d.type }}</span></td>
         <td>{{ risk_badge(d.severity, d.risk_score) }}</td>
         <td>{% if d.status == 'Open' %}<a href="{{ url_for('disruptions.index') }}#d{{ d.id }}" class="pill risk-HIGH">Open — resolve</a>{% else %}<span class="pill status-pill">Resolved</span>{% endif %}</td>

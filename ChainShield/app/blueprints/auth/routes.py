@@ -1,3 +1,6 @@
+import re
+from urllib.parse import urlsplit
+
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
 
@@ -5,6 +8,17 @@ from app.extensions import db
 from app.models import User, ActivityLog
 
 SELF_REGISTER_ROLES = ["manager", "captain", "pilot", "driver", "loco_pilot"]
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _safe_next(target):
+    """Only follow same-site relative paths (blocks open redirects like //evil.com)."""
+    if not target:
+        return None
+    parts = urlsplit(target)
+    if parts.scheme or parts.netloc or not target.startswith("/") or target.startswith("//"):
+        return None
+    return target
 
 auth_bp = Blueprint("auth", __name__, template_folder="../../templates/auth")
 
@@ -28,7 +42,8 @@ def login():
             db.session.add(ActivityLog(user_id=user.id, action=f"{user.name} ({user.role}) logged in"))
             db.session.commit()
             flash(f"Welcome back, {user.name}.", "success")
-            return redirect(url_for("main.dashboard"))
+            next_url = _safe_next(request.args.get("next") or request.form.get("next"))
+            return redirect(next_url or url_for("main.dashboard"))
 
         flash("Invalid email or password.", "danger")
 
@@ -48,6 +63,9 @@ def register():
             role = "manager"
         if not name or not email or len(password) < 6:
             flash("Name, email and a password of at least 6 characters are required.", "warning")
+            return redirect(url_for("auth.register"))
+        if not EMAIL_RE.match(email) or len(email) > 254:
+            flash("Please enter a valid email address.", "warning")
             return redirect(url_for("auth.register"))
 
         if User.query.filter_by(email=email).first():

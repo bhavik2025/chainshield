@@ -10,6 +10,7 @@ from flask_login import login_required, current_user
 from app.extensions import db, socketio
 from app.models import User, Hub, Shipment, Disruption, ActivityLog, CargoType
 from app.services.stats import chart_data
+from app.services.assistant import GEMINI_STATUS
 
 main_bp = Blueprint("main", __name__)
 
@@ -118,7 +119,19 @@ def dashboard_users():
 def update_user_role(user_id):
     user = User.query.get_or_404(user_id)
     new_role = request.form.get("role")
-    if new_role in VALID_ROLES and new_role != user.role:
+    if new_role not in VALID_ROLES:
+        flash("Please choose a valid role.", "warning")
+        return redirect(url_for("main.dashboard_users"))
+    if user.id == current_user.id and new_role != user.role:
+        # Stops an admin locking themselves (and possibly everyone) out of the Admin Panel.
+        flash("You can't change your own role. Ask another admin to do it.", "warning")
+        return redirect(url_for("main.dashboard_users"))
+    if user.role == "admin" and new_role != "admin":
+        other_admins = User.query.filter(User.role == "admin", User.id != user.id, User.is_active.is_(True)).count()
+        if other_admins == 0:
+            flash("At least one active admin is required.", "warning")
+            return redirect(url_for("main.dashboard_users"))
+    if new_role != user.role:
         old_role = user.role
         user.role = new_role
         db.session.add(
@@ -177,6 +190,7 @@ def dashboard_config():
         scan_interval=cfg.get("RISK_SCAN_INTERVAL_SECONDS"),
         weather_key_set=bool(cfg.get("OPENWEATHER_API_KEY")),
         gemini_key_set=bool(cfg.get("GEMINI_API_KEY")),
+        gemini_status=GEMINI_STATUS,
         socketio_async_mode=socketio.async_mode,
         debug=current_app.debug,
     )
@@ -354,6 +368,8 @@ def _date_range():
         end = today
     if start > end:
         start, end = end, start
+        if request.endpoint == "main.reports":
+            flash("The From date was after the To date, so the two dates were swapped.", "info")
     return start, end, datetime.combine(start, datetime.min.time()), datetime.combine(end + timedelta(days=1), datetime.min.time())
 
 

@@ -18,7 +18,9 @@
     <div class="card-title mb-3">Integrations & runtime</div>
     {% for icon, label, ok, text in [
       ("bi-cloud-sun", "OpenWeatherMap API", weather_key_set, "Configured" if weather_key_set else "Simulated signal"),
-      ("bi-stars", "Gemini AI assistant", gemini_key_set, "Configured" if gemini_key_set else "Offline engine"),
+      ("bi-stars", "Gemini AI assistant", gemini_key_set and gemini_status.ok is not false,
+        ("Offline engine" if not gemini_key_set else "Key set, last call failed" if gemini_status.ok is false
+         else "Working" if gemini_status.ok else "Configured (not tested yet)")),
       ("bi-broadcast", "Socket.IO async mode", true, socketio_async_mode),
       ("bi-hdd-rack", "Mode", not debug, "Debug" if debug else "Production"),
     ] %}
@@ -28,6 +30,9 @@
       <span class="ms-auto pill {{ 'risk-LOW' if ok else 'status-pill' }}">{{ text }}</span>
     </div>
     {% endfor %}
+    {% if gemini_key_set and gemini_status.ok is false %}
+    <div class="small text-muted mt-3">Gemini error: {{ gemini_status.detail }}</div>
+    {% endif %}
   </div></div></div>
 </div>
 {% endblock %}

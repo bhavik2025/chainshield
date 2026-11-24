@@ -35,7 +35,7 @@
       </div>
       <div class="d-flex flex-wrap gap-2 mb-3">
         <span class="tag"><i class="bi bi-cloud-lightning"></i> {{ d.type }}</span>
-        <span class="tag"><i class="bi bi-clock"></i> {{ d.detected_at.strftime("%d %b, %H:%M") }}</span>
+        <span class="tag"><i class="bi bi-clock"></i> {{ (d.detected_at|local).strftime("%d %b, %H:%M") }}</span>
         {% if d.shipment.assigned_operator %}<span class="tag"><i class="bi bi-person"></i> {{ d.shipment.assigned_operator.name }}</span>{% endif %}
       </div>
       {% if can_manage(current_user) %}
@@ -78,7 +78,7 @@
         <td><span class="tag">{{ d.type }}</span></td>
         <td>{{ risk_badge(d.severity) }}</td>
         <td class="small">{{ chosen[0].description if chosen else "Auto-closed (delivered)" }}</td>
-        <td class="text-muted small">{{ d.resolved_at.strftime("%d %b %Y, %H:%M") if d.resolved_at else "—" }}</td>
+        <td class="text-muted small">{{ (d.resolved_at|local).strftime("%d %b %Y, %H:%M") if d.resolved_at else "—" }}</td>
       </tr>
       {% endfor %}
     </tbody>

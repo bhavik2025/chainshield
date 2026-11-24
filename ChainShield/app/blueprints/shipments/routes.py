@@ -7,7 +7,7 @@ from app.extensions import db, socketio
 from app.forms import ShipmentForm, StatusUpdateForm
 from app.models import Shipment, Hub, CargoType, User, Disruption, ActivityLog
 from app.services.risk_engine import scan_shipment, hub_for_city, _alert
-from app.services.sea_route import route_path, split_at
+from app.services.sea_route import route_path, split_at, is_port
 
 shipments_bp = Blueprint("shipments", __name__)
 
@@ -63,6 +63,20 @@ def _next_tracking_no():
     return candidate
 
 
+def _sea_ok(form):
+    """Sea shipments need a port at both ends (inland hubs like Delhi or Jaipur have none)."""
+    if form.transport_mode.data != "Sea":
+        return True
+    inland = [c for c in (form.origin.data, form.destination.data)
+              if not (lambda h: h is not None and is_port(h.lat, h.lng))(hub_for_city(c))]
+    if inland:
+        form.transport_mode.errors.append(
+            f"Sea needs a port at both ends; {' and '.join(inland)} {'is' if len(inland) == 1 else 'are'} inland. "
+            "Choose Road, Rail or Air.")
+        return False
+    return True
+
+
 def _apply_form(form, shipment):
     shipment.origin = form.origin.data
     shipment.destination = form.destination.data
@@ -91,7 +105,7 @@ def index():
 def create():
     form = ShipmentForm()
     _populate_choices(form)
-    if form.validate_on_submit():
+    if form.validate_on_submit() and _sea_ok(form):
         tracking_no = (form.tracking_no.data or "").strip().upper() or _next_tracking_no()
         if Shipment.query.filter_by(tracking_no=tracking_no).first():
             form.tracking_no.errors.append("That tracking number already exists.")
@@ -140,7 +154,7 @@ def edit(shipment_id):
     _populate_choices(form)
     if not form.is_submitted():
         form.assigned_operator_id.data = shipment.assigned_operator_id or 0
-    if form.validate_on_submit():
+    if form.validate_on_submit() and _sea_ok(form):
         new_no = (form.tracking_no.data or "").strip().upper() or shipment.tracking_no
         clash = Shipment.query.filter(Shipment.tracking_no == new_no, Shipment.id != shipment.id).first()
         if clash:
@@ -196,7 +210,11 @@ def update_status(shipment_id):
     if current_user.role not in ("admin", "manager") and shipment.assigned_operator_id != current_user.id:
         abort(403)
     form = StatusUpdateForm()
-    if form.validate_on_submit():
+    if not form.validate_on_submit():
+        flash("Please choose a valid status.", "warning")
+    elif form.status.data == shipment.status:
+        flash(f"{shipment.tracking_no} is already {shipment.status}.", "info")
+    else:
         old = shipment.status
         shipment.status = form.status.data
         db.session.add(ActivityLog(user_id=current_user.id,

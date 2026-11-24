@@ -84,20 +84,21 @@ def resolve(disruption_id):
         return redirect(url_for("disruptions.index"))
 
     option_no = request.form.get("option_no", type=int)
-    chosen = None
+    chosen = next((sol for sol in disruption.solutions if sol.option_no == option_no), None)
+    if chosen is None:
+        flash("Please select one of the route options before applying.", "warning")
+        return redirect(url_for("disruptions.index"))
     for sol in disruption.solutions:
-        sol.selected = sol.option_no == option_no
-        if sol.selected:
-            chosen = sol
+        sol.selected = sol is chosen
 
     shipment = disruption.shipment
     disruption.status = "Resolved"
     disruption.resolved_at = datetime.utcnow()
     disruption.resolved_by = current_user.id
-    decision = chosen.description if chosen else "an unspecified option"
+    decision = chosen.description
 
     # Applying a "hold" option puts the shipment on hold; any other keeps it moving.
-    if chosen and chosen.description.lower().startswith("hold"):
+    if chosen.description.lower().startswith("hold"):
         shipment.status = "On-hold"
 
     db.session.add(ActivityLog(

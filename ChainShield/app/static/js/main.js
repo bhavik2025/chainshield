@@ -139,9 +139,11 @@
   }, { threshold: 0.08 }) : null;
   const armReveal = (scope) => {
     (scope || document).querySelectorAll(".reveal:not(.in)").forEach((el, i) => {
-      if (!el.style.getPropertyValue("--d")) el.style.setProperty("--d", Math.min(i, 10) * 0.05 + "s");
+      if (!el.style.getPropertyValue("--d")) el.style.setProperty("--d", Math.min(i, 6) * 0.03 + "s");
       revealObs ? revealObs.observe(el) : el.classList.add("in");
     });
+    // Safety net: never leave content invisible (e.g. a background tab, printing).
+    setTimeout(() => (scope || document).querySelectorAll(".reveal:not(.in)").forEach((el) => el.classList.add("in")), 1200);
   };
   window.csReveal = armReveal;
   armReveal();

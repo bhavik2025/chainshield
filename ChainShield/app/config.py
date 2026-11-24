@@ -7,6 +7,8 @@ basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 class BaseConfig:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Pages show times in IST (UTC+05:30); stored times and CSV exports stay UTC.
+    DISPLAY_UTC_OFFSET_MINUTES = int(os.environ.get("DISPLAY_UTC_OFFSET_MINUTES", "330"))
     PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
 
     # Risk engine

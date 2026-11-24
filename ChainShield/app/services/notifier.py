@@ -4,6 +4,7 @@ to that user's personal Socket.IO room ("user_<id>") in real time.
 """
 from app.extensions import db, socketio
 from app.models import Notification, User
+from app.services.timefmt import local
 
 
 def user_room(user_id: int) -> str:
@@ -25,7 +26,7 @@ def notify_users(user_ids, message: str, commit: bool = True):
     for n in rows:
         socketio.emit(
             "notification",
-            {"id": n.id, "message": n.message, "created_at": n.created_at.strftime("%d/%m %H:%M") if n.created_at else ""},
+            {"id": n.id, "message": n.message, "created_at": local(n.created_at).strftime("%d/%m %H:%M") if n.created_at else ""},
             to=user_room(n.user_id),
         )
     return rows

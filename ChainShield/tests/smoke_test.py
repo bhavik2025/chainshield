@@ -365,6 +365,53 @@ check("delivered shipments have no open disruption",
 check("the sea shipment is still sailing along its lane",
       Shipment.query.filter_by(tracking_no="CS-1005").first().status == "In-transit")
 
+# ------------------------------------------------- fixes from live testing
+print("\n== Fixes from the 24 Nov black-box test")
+c = app.test_client()
+login(c, "admin@chainshield.com")
+admin_id = user_id("admin@chainshield.com")
+c.post(f"/dashboard/users/{admin_id}/role", data={"role": "driver"})
+check("admin can't change their own role", db.session.get(User, admin_id).role == "admin")
+mgr_id = user_id("manisha@chainshield.com")
+c.post(f"/dashboard/users/{mgr_id}/role", data={"role": "superuser"})
+check("an invalid role is refused", db.session.get(User, mgr_id).role == "manager")
+
+c.get("/auth/logout")
+c.post("/auth/register", data={"name": "Bad Email", "email": "notanemail", "password": "test1234", "role": "driver"})
+check("registration refuses an invalid email", User.query.filter_by(email="notanemail").first() is None)
+
+resp = c.post("/auth/login?next=/reports", data={"email": "manisha@chainshield.com", "password": PASSWORD})
+check("login returns to the requested page", resp.status_code == 302 and resp.headers["Location"].endswith("/reports"))
+c.get("/auth/logout")
+resp = c.post("/auth/login?next=//evil.example.com", data={"email": "manisha@chainshield.com", "password": PASSWORD})
+check("login ignores an off-site next", "evil" not in resp.headers.get("Location", ""))
+
+sea = {"origin": "Delhi", "destination": "Jaipur", "transport_mode": "Sea", "cargo_type_id": str(CargoType.query.first().id),
+       "cargo_value": "1000", "status": "In-transit", "assigned_operator_id": "0", "tracking_no": "FIX-SEA1"}
+c.post("/shipments/new", data=sea)
+check("Sea between inland cities is refused", Shipment.query.filter_by(tracking_no="FIX-SEA1").first() is None)
+c.post("/shipments/new", data={**sea, "origin": "Mumbai", "destination": "Kolkata", "tracking_no": "FIX-SEA2"})
+check("Sea between port cities is accepted", Shipment.query.filter_by(tracking_no="FIX-SEA2").first() is not None)
+check("Ahmedabad and Pune are inland, Surat and Chennai are ports",
+      [sea_route.is_port(h.lat, h.lng) for h in (Hub.query.filter_by(name=n).first()
+       for n in ("Ahmedabad Hub", "Pune Hub", "Surat Hub", "Chennai Hub"))] == [False, False, True, True])
+
+ship = Shipment.query.filter_by(tracking_no="FIX-SEA2").first()
+logs_before = ActivityLog.query.count()
+c.post(f"/shipments/{ship.id}/status", data={"status": "Exploded"})
+c.post(f"/shipments/{ship.id}/status", data={"status": ship.status})
+check("invalid or unchanged status writes no audit entry", ActivityLog.query.count() == logs_before)
+
+risk_engine.trigger_demo_disruption(ship)
+open_d = Disruption.query.filter_by(shipment_id=ship.id, status="Open").first()
+c.post(f"/disruptions/{open_d.id}/resolve", data={})
+check("resolving without an option is refused", db.session.get(Disruption, open_d.id).status == "Open")
+c.post(f"/disruptions/{open_d.id}/resolve", data={"option_no": "1"})
+check("resolving with an option works", db.session.get(Disruption, open_d.id).status == "Resolved")
+
+resp = c.get("/reports?from=2026-12-31&to=2026-01-01")
+check("reversed report dates are swapped with a note", b"were swapped" in resp.data)
+
 ctx.pop()
 failed = [name for ok, name in results if not ok]
 print(f"\n{len(results)} checks, {len(results) - len(failed)} passed, {len(failed)} failed")

@@ -20,7 +20,7 @@
         <i class="bi {{ 'bi-signpost-split' if 'instruction' in n.message else 'bi-exclamation-triangle' }}"></i></span>
       <div class="flex-grow-1">
         <div class="{{ 'fw-600' if not n.is_read }}">{{ n.message }}</div>
-        <div class="small text-muted">{{ n.created_at.strftime("%d %b %Y, %H:%M") }}{% if not n.is_read %} · <span style="color:var(--cs-primary)">New</span>{% endif %}</div>
+        <div class="small text-muted">{{ (n.created_at|local).strftime("%d %b %Y, %H:%M") }}{% if not n.is_read %} · <span style="color:var(--cs-primary)">New</span>{% endif %}</div>
       </div>
       {% if not n.is_read %}
       <form method="post" action="{{ url_for('notifications.mark_read', notification_id=n.id) }}">

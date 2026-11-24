@@ -15,7 +15,7 @@
     <li class="activity-item">
       <span class="ico"><i class="bi {{ 'bi-lightning-charge' if 'DEMO' in log.action else ('bi-check2-circle' if 'resolved' in log.action else ('bi-box-arrow-in-right' if 'logged in' in log.action else ('bi-truck' if 'delivered' in log.action else 'bi-pencil-square'))) }}"></i></span>
       <span><span class="fw-600">{{ log.user.name if log.user else "System" }}</span> <span class="text-muted">—</span> {{ log.action }}</span>
-      <span class="when">{{ log.timestamp.strftime("%d %b %Y, %H:%M:%S") }}</span>
+      <span class="when">{{ (log.timestamp|local).strftime("%d %b %Y, %H:%M:%S") }}</span>
     </li>
     {% endfor %}
   </ul>

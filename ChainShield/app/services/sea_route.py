@@ -47,6 +47,32 @@ def _sea_path(origin, dest):
     return path
 
 
+# A hub counts as a port when the shipping-lane network starts within this
+# distance of it (Mumbai 17 km, Surat 30 km, Kolkata 50 km; Pune 125 km, Delhi 900 km).
+PORT_MAX_KM = 100
+
+
+@lru_cache(maxsize=256)
+def sea_access_km(lat, lng):
+    """Distance in km from (lat, lng) to the nearest point of the shipping-lane network."""
+    try:
+        # Route to the Singapore Strait; searoute starts the line at the lane node nearest to us.
+        first = searoute.searoute((lng, lat), (103.8, 1.26))["geometry"]["coordinates"][0]
+    except Exception:
+        return float("inf")
+    flng = _near(first[0], lng)
+    km_lat = 111.0
+    km_lng = 111.0 * math.cos(math.radians((lat + first[1]) / 2))
+    return math.hypot((first[1] - lat) * km_lat, (flng - lng) * km_lng)
+
+
+def is_port(lat, lng):
+    """True when a hub at (lat, lng) is close enough to the sea for Sea shipments."""
+    if lat is None or lng is None:
+        return False
+    return sea_access_km(round(lat, 4), round(lng, 4)) <= PORT_MAX_KM
+
+
 def route_path(mode, origin, dest):
     """List of (lat, lng) points from origin to dest for this transport mode."""
     if origin is None or dest is None:

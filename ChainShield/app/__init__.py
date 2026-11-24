@@ -31,6 +31,16 @@ def create_app(config_name=None):
             db.session.rollback()
 
     from flask import render_template
+    from app.services.timefmt import local
+
+    app.jinja_env.filters["local"] = local
+
+    @app.errorhandler(500)
+    def server_error(e):
+        # Leave the DB session usable for the next request after a failed write.
+        db.session.rollback()
+        return render_template("error.html", code=500, title="Something went wrong",
+                               message="The server hit a temporary problem. Please try again."), 500
 
     @app.errorhandler(403)
     def forbidden(_e):
@@ -51,6 +61,8 @@ def create_app(config_name=None):
 
 def register_extensions(app):
     db.init_app(app)
+    if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+        _tune_sqlite(app)
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
     login_manager.login_message_category = "warning"
@@ -99,6 +111,25 @@ def register_extensions(app):
 def _can_manage(user):
     """Admins and managers can create/edit/delete shipments."""
     return getattr(user, "role", None) in ("admin", "manager")
+
+
+def _tune_sqlite(app):
+    """WAL lets pages read while the background scan writes; busy_timeout waits
+    for a short write lock instead of failing at once with "database is locked"."""
+    from sqlalchemy import event
+
+    with app.app_context():
+        engine = db.engine
+
+    @event.listens_for(engine, "connect")
+    def _set_pragmas(dbapi_conn, _record):
+        cur = dbapi_conn.cursor()
+        try:
+            cur.execute("PRAGMA journal_mode=WAL")
+        except Exception:  # e.g. in-memory test DB
+            pass
+        cur.execute("PRAGMA busy_timeout=15000")
+        cur.close()
 
 
 def _start_scheduler(app):

@@ -31,7 +31,7 @@
     </div>
     <div class="chat-messages flex-grow-1 p-3 p-md-4" id="chatMessages">
       {% for m in messages %}
-      <div class="chat-bubble {{ 'mine' if m.sender_id == current_user.id else 'theirs' }}">{{ m.content }}<div class="meta">{{ m.sent_at.strftime("%d %b, %H:%M") }}</div></div>
+      <div class="chat-bubble {{ 'mine' if m.sender_id == current_user.id else 'theirs' }}">{{ m.content }}<div class="meta">{{ (m.sent_at|local).strftime("%d %b, %H:%M") }}</div></div>
       {% else %}
       <div class="empty-state mt-5" id="chatEmpty"><i class="bi bi-chat-heart"></i>Start the conversation with {{ peer.name }}.</div>
       {% endfor %}

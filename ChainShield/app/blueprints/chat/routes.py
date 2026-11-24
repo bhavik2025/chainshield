@@ -11,6 +11,7 @@ from flask_login import login_required, current_user
 from app.extensions import db, socketio
 from app.models import Message, User
 from app.services.notifier import user_room
+from app.services.timefmt import local
 
 chat_bp = Blueprint("chat", __name__)
 
@@ -29,7 +30,7 @@ def serialize(m: Message) -> dict:
         "sender_id": m.sender_id,
         "receiver_id": m.receiver_id,
         "content": m.content,
-        "sent_at": m.sent_at.strftime("%d/%m %H:%M"),
+        "sent_at": local(m.sent_at).strftime("%d/%m %H:%M"),
     }
 
 

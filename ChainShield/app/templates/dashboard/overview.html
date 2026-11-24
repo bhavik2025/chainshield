@@ -49,7 +49,7 @@
       <li class="activity-item">
         <span class="ico"><i class="bi {{ 'bi-lightning-charge' if 'DEMO' in log.action else ('bi-check2-circle' if 'resolved' in log.action else ('bi-box-arrow-in-right' if 'logged in' in log.action else 'bi-pencil-square')) }}"></i></span>
         <span>{{ log.action }}</span>
-        <span class="when">{{ log.timestamp.strftime("%d %b, %H:%M") }}</span>
+        <span class="when">{{ (log.timestamp|local).strftime("%d %b, %H:%M") }}</span>
       </li>
       {% endfor %}
     </ul>

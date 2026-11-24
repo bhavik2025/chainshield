@@ -248,6 +248,7 @@ def scan_all_shipments():
             db.session.add(ActivityLog(action=f"{shipment.tracking_no} delivered at {shipment.destination}"))
             for d in Disruption.query.filter_by(shipment_id=shipment.id, status="Open").all():
                 d.status, d.resolved_at = "Resolved", datetime.utcnow()
+            db.session.commit()
             continue
 
         disruption = scan_shipment(shipment)
@@ -255,6 +256,10 @@ def scan_all_shipments():
         if disruption:
             disruptions_created += 1
             _alert(disruption)
+        # Commit per shipment: SQLite allows one writer at a time, so a single
+        # commit at the end held the write lock through every weather API call
+        # and made users' own saves fail with "database is locked" (HTTP 500).
+        db.session.commit()
 
     db.session.commit()
     socketio.emit("shipments_updated", {"scanned": scanned, "disruptions_created": disruptions_created})

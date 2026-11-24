@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 
 from app.extensions import db
 from app.models import Notification
+from app.services.timefmt import local
 
 notifications_bp = Blueprint("notifications", __name__)
 
@@ -45,5 +46,5 @@ def unread():
     )
     return jsonify({
         "count": Notification.query.filter_by(user_id=current_user.id, is_read=False).count(),
-        "items": [{"id": n.id, "message": n.message, "created_at": n.created_at.strftime("%d/%m %H:%M")} for n in rows],
+        "items": [{"id": n.id, "message": n.message, "created_at": local(n.created_at).strftime("%d/%m %H:%M")} for n in rows],
     })

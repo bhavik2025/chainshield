@@ -63,38 +63,83 @@ def build_context(user) -> str:
     return "\n".join(lines)
 
 
+# Result of the most recent Gemini call, shown on Admin > System Config so a
+# key that is set but not working is visible (instead of just "Configured").
+GEMINI_STATUS = {"ok": None, "detail": "Not called yet", "at": None}
+
+GEMINI_ENDPOINTS = {
+    # Google AI Studio keys (usually "AIza...")
+    "ai_studio": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+    # Vertex AI express-mode keys (usually "AQ....")
+    "vertex": "https://aiplatform.googleapis.com/v1/publishers/google/models/{model}:generateContent",
+}
+
+
 def ask(user, question: str, history=None) -> dict:
     question = (question or "").strip()
     if not question:
         return {"answer": "Please type a question.", "source": "offline"}
 
-    api_key = current_app.config.get("GEMINI_API_KEY")
+    api_key = (current_app.config.get("GEMINI_API_KEY") or "").strip()
     if api_key:
         try:
-            return {"answer": _ask_gemini(api_key, user, question, history or []), "source": "gemini"}
+            answer = _ask_gemini(api_key, user, question, history or [])
+            _set_status(True, "Last call succeeded")
+            return {"answer": answer, "source": "gemini"}
         except Exception as exc:  # network down, bad key, quota, model retired...
             current_app.logger.warning("Gemini call failed, using offline engine: %s", exc)
+            _set_status(False, str(exc)[:200])
             answer = offline_answer(user, question)
             return {"answer": answer + "\n\n(Gemini unavailable — answered by the offline engine.)", "source": "offline"}
     return {"answer": offline_answer(user, question), "source": "offline"}
 
 
-def _ask_gemini(api_key, user, question, history) -> str:
-    import google.generativeai as genai
+def _set_status(ok, detail):
+    from datetime import datetime
 
-    genai.configure(api_key=api_key, transport="rest")  # REST honours the timeout; gRPC can hang behind proxies
-    model = genai.GenerativeModel(current_app.config.get("GEMINI_MODEL", "gemini-2.5-flash"),
-                                  system_instruction=SYSTEM_PROMPT)
-    convo = "\n".join(f"{h.get('role', 'user').upper()}: {h.get('text', '')}" for h in history[-6:])
+    GEMINI_STATUS.update(ok=ok, detail=detail, at=datetime.utcnow())
+
+
+def _call_endpoint(kind, api_key, model, prompt):
+    import requests
+
+    body = {
+        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+    }
+    resp = requests.post(GEMINI_ENDPOINTS[kind].format(model=model), json=body,
+                         headers={"x-goog-api-key": api_key}, timeout=25)
+    if resp.status_code != 200:
+        try:
+            msg = resp.json().get("error", {}).get("message", "")
+        except ValueError:
+            msg = resp.text[:150]
+        raise RuntimeError(f"{kind} HTTP {resp.status_code}: {msg}")
+    data = resp.json()
+    parts = (data.get("candidates") or [{}])[0].get("content", {}).get("parts", [])
+    text = "".join(p.get("text", "") for p in parts).strip()
+    if not text:
+        raise RuntimeError(f"{kind}: empty response")
+    return text
+
+
+def _ask_gemini(api_key, user, question, history) -> str:
+    model = current_app.config.get("GEMINI_MODEL", "gemini-2.5-flash")
+    convo = "\n".join(f"{h.get('role', 'user').upper()}: {h.get('text', '')}" for h in history[-6:]
+                      if isinstance(h, dict))
     prompt = (
         f"LIVE DATA SNAPSHOT (user: {user.name}, role: {user.role})\n{build_context(user)}\n\n"
         f"RECENT CONVERSATION:\n{convo or '(none)'}\n\nQUESTION: {question}"
     )
-    resp = model.generate_content(prompt, request_options={"timeout": 25})
-    text = (resp.text or "").strip()
-    if not text:
-        raise RuntimeError("empty response")
-    return text
+    # Try the endpoint that matches the key's format first, then the other one.
+    order = ["vertex", "ai_studio"] if api_key.startswith("AQ.") else ["ai_studio", "vertex"]
+    errors = []
+    for kind in order:
+        try:
+            return _call_endpoint(kind, api_key, model, prompt)
+        except Exception as exc:
+            errors.append(str(exc))
+    raise RuntimeError(" | ".join(errors))
 
 
 # ------------------------------------------------------------ offline engine

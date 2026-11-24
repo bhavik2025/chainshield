@@ -39,7 +39,7 @@
     <div class="card-head"><div class="card-title">3 · Activity audit log</div>
       <a class="btn btn-sm btn-outline-success" href="{{ url_for('main.report_csv', kind='activity-log') }}{{ q }}"><i class="bi bi-filetype-csv"></i> CSV</a></div>
     <ul class="list-clean" style="max-height: 290px; overflow-y: auto;">
-      {% for l in logs[:25] %}<li class="activity-item"><span class="ico"><i class="bi bi-clock-history"></i></span><span>{{ l.action }}</span><span class="when">{{ l.timestamp.strftime("%d %b %H:%M") }}</span></li>
+      {% for l in logs[:25] %}<li class="activity-item"><span class="ico"><i class="bi bi-clock-history"></i></span><span>{{ l.action }}</span><span class="when">{{ (l.timestamp|local).strftime("%d %b %H:%M") }}</span></li>
       {% else %}<li class="text-muted small">No activity in range</li>{% endfor %}
     </ul>
     {% if logs|length > 25 %}<div class="small text-muted mt-2">+{{ logs|length - 25 }} more in the CSV</div>{% endif %}
