@@ -88,7 +88,7 @@ def ask(user, question: str, history=None) -> dict:
             return {"answer": answer, "source": "gemini"}
         except Exception as exc:  # network down, bad key, quota, model retired...
             current_app.logger.warning("Gemini call failed, using offline engine: %s", exc)
-            _set_status(False, str(exc)[:200])
+            _set_status(False, str(exc)[:600])
             answer = offline_answer(user, question)
             return {"answer": answer + "\n\n(Gemini unavailable — answered by the offline engine.)", "source": "offline"}
     return {"answer": offline_answer(user, question), "source": "offline"}
@@ -131,8 +131,9 @@ def _ask_gemini(api_key, user, question, history) -> str:
         f"LIVE DATA SNAPSHOT (user: {user.name}, role: {user.role})\n{build_context(user)}\n\n"
         f"RECENT CONVERSATION:\n{convo or '(none)'}\n\nQUESTION: {question}"
     )
-    # Try the endpoint that matches the key's format first, then the other one.
-    order = ["vertex", "ai_studio"] if api_key.startswith("AQ.") else ["ai_studio", "vertex"]
+    # Google AI Studio issues both "AIza..." and newer "AQ...." keys; Vertex AI
+    # express keys are also "AQ....". Try AI Studio first, then Vertex.
+    order = ["ai_studio", "vertex"]
     errors = []
     for kind in order:
         try:
