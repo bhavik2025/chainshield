@@ -548,3 +548,4 @@ hr { border-color: var(--cs-border); opacity: 1; }
   .page-actions .input-icon { flex: 1 1 100%; }
   .page-actions .input-icon input { min-width: 0 !important; width: 100%; }
 }
+.assistant-msg .body code { font-size: .82rem; padding: .05rem .3rem; border-radius: 5px; background: var(--cs-surface-2); }

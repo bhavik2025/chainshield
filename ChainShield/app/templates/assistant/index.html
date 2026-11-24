@@ -4,6 +4,7 @@
 <div class="page-head reveal">
   <div><div class="eyebrow">Copilot</div><h1>AI assistant</h1><p>Ask about live shipments, risks and route decisions in plain English.</p></div>
   <div class="page-actions">
+    <button type="button" class="btn btn-ghost btn-sm d-none" id="clearChat"><i class="bi bi-trash3"></i> Clear chat</button>
     <span class="pill {{ 'risk-LOW' if gemini_enabled else 'status-pill' }}"><i class="bi {{ 'bi-stars' if gemini_enabled else 'bi-cpu' }}"></i> {{ "Powered by Google Gemini" if gemini_enabled else "Offline engine" }}</span>
   </div>
 </div>
@@ -28,13 +29,32 @@
 <script>
 (function () {
   const log = document.getElementById("log"), input = document.getElementById("question"), btn = document.getElementById("askBtn");
+  // The conversation is kept in this browser tab until you log out or close the tab,
+  // so refreshing or opening another page and coming back doesn't lose it.
+  const KEY = "cs-assistant-{{ current_user.id }}";
+  let saved = [];
+  try { saved = JSON.parse(sessionStorage.getItem(KEY) || "[]"); } catch (e) { saved = []; }
   const history = [];
-  function add(text, who, source) {
+  const save = () => { try { sessionStorage.setItem(KEY, JSON.stringify(saved.slice(-60))); } catch (e) {} };
+
+  // Gemini replies use light markdown. Escape everything first, then allow only
+  // **bold**, `code` and "* " / "- " bullets, so no HTML from a reply can run.
+  function render(text) {
+    const esc = text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    return esc
+      .replace(/^\s*[*-]\s+/gm, (m) => m.replace(/[*-]\s+$/, "• "))
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/^#{1,4}\s*(.+)$/gm, "<strong>$1</strong>");
+  }
+  function add(text, who, source, instant) {
     const wrap = document.createElement("div");
     wrap.className = "assistant-msg " + who;
+    if (instant) wrap.style.animation = "none";
     wrap.innerHTML = who === "bot" ? '<span class="who"><i class="bi bi-stars"></i></span><div><div class="body"></div></div>' : '<div><div class="body"></div></div>';
     const body = wrap.querySelector(".body");
     if (text === null) body.innerHTML = '<span class="typing"><span></span><span></span><span></span></span>';
+    else if (who === "bot") body.innerHTML = render(text);
     else body.textContent = text;
     if (source) {
       const tag = document.createElement("div");
@@ -42,17 +62,33 @@
       tag.innerHTML = source === "gemini" ? '<i class="bi bi-stars"></i> Gemini · grounded in live data' : '<i class="bi bi-cpu"></i> Offline engine · live data';
       wrap.querySelector("div:last-child").appendChild(tag);
     }
-    log.appendChild(wrap); log.scrollTo({ top: log.scrollHeight, behavior: "smooth" });
+    log.appendChild(wrap); log.scrollTo({ top: log.scrollHeight, behavior: instant ? "auto" : "smooth" });
     return wrap;
   }
+  // Restore the earlier conversation.
+  saved.forEach((m) => {
+    add(m.text, m.who, m.source, true);
+    history.push({ role: m.who === "user" ? "user" : "assistant", text: m.text });
+  });
+  const clearBtn = document.getElementById("clearChat");
+  const showClear = () => clearBtn && clearBtn.classList.toggle("d-none", saved.length === 0);
+  showClear();
+  if (clearBtn) clearBtn.addEventListener("click", () => {
+    saved = []; history.length = 0; save(); showClear();
+    log.querySelectorAll(".assistant-msg:not(:first-child)").forEach((el) => el.remove());
+    input.focus();
+  });
+
   async function send(q) {
     add(q, "user");
+    saved.push({ who: "user", text: q }); save(); showClear();
     const thinking = add(null, "bot");
     btn.disabled = true;
     try {
       const r = await window.csPost("{{ url_for('assistant.ask_question') }}", { question: q, history });
       thinking.remove(); add(r.answer, "bot", r.source);
       history.push({ role: "user", text: q }, { role: "assistant", text: r.answer });
+      saved.push({ who: "bot", text: r.answer, source: r.source }); save();
     } catch (e) { thinking.querySelector(".body").textContent = "Sorry — " + e.message; }
     finally { btn.disabled = false; input.focus(); }
   }

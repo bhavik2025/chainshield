@@ -40,3 +40,9 @@
   </div>
 </div>
 {% endblock %}
+{% block scripts %}
+<script>
+  // Logged out (or the session ended): forget any saved assistant conversations.
+  try { Object.keys(sessionStorage).filter((k) => k.startsWith("cs-assistant-")).forEach((k) => sessionStorage.removeItem(k)); } catch (e) {}
+</script>
+{% endblock %}
