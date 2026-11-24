@@ -21,7 +21,7 @@ class BaseConfig:
     # External APIs (optional — services fall back to simulated data if unset)
     OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY", "")
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-    GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
 
     # Live simulation: each risk scan nudges in-transit shipments toward their
     # destination hub, so the live map actually moves during a demo.

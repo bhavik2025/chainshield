@@ -100,6 +100,17 @@ def _set_status(ok, detail):
     GEMINI_STATUS.update(ok=ok, detail=detail, at=datetime.utcnow())
 
 
+class GeminiHTTPError(RuntimeError):
+    def __init__(self, kind, status, msg):
+        super().__init__(f"{kind} HTTP {status}: {msg}")
+        self.status = status
+
+
+# Busy or rate-limited: worth retrying, or trying another model.
+RETRYABLE = {429, 500, 503, 504}
+_model_cache = {}
+
+
 def _call_endpoint(kind, api_key, model, prompt):
     import requests
 
@@ -108,13 +119,13 @@ def _call_endpoint(kind, api_key, model, prompt):
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
     }
     resp = requests.post(GEMINI_ENDPOINTS[kind].format(model=model), json=body,
-                         headers={"x-goog-api-key": api_key}, timeout=25)
+                         headers={"x-goog-api-key": api_key}, timeout=20)
     if resp.status_code != 200:
         try:
             msg = resp.json().get("error", {}).get("message", "")
         except ValueError:
             msg = resp.text[:150]
-        raise RuntimeError(f"{kind} HTTP {resp.status_code}: {msg}")
+        raise GeminiHTTPError(kind, resp.status_code, msg)
     data = resp.json()
     parts = (data.get("candidates") or [{}])[0].get("content", {}).get("parts", [])
     text = "".join(p.get("text", "") for p in parts).strip()
@@ -123,23 +134,64 @@ def _call_endpoint(kind, api_key, model, prompt):
     return text
 
 
+def _backup_models(api_key, primary, limit=3):
+    """Other "flash" models this key can use (asked from Google once, then cached).
+    Used when the configured model is overloaded (HTTP 503) or rate-limited (429)."""
+    import requests
+
+    if "list" not in _model_cache:
+        names = []
+        try:
+            resp = requests.get("https://generativelanguage.googleapis.com/v1beta/models",
+                                headers={"x-goog-api-key": api_key}, params={"pageSize": 200}, timeout=10)
+            for m in resp.json().get("models", []):
+                name = m.get("name", "").replace("models/", "")
+                if ("generateContent" in m.get("supportedGenerationMethods", [])
+                        and "flash" in name and not any(x in name for x in ("image", "tts", "audio", "live", "exp"))):
+                    names.append(name)
+        except Exception:
+            names = []
+        # Newest first: higher version numbers sort later alphabetically.
+        _model_cache["list"] = sorted(set(names), reverse=True)
+    return [n for n in _model_cache["list"] if n != primary][:limit]
+
+
 def _ask_gemini(api_key, user, question, history) -> str:
-    model = current_app.config.get("GEMINI_MODEL", "gemini-2.5-flash")
+    import time
+
+    model = current_app.config.get("GEMINI_MODEL", "gemini-3.8-flash")
     convo = "\n".join(f"{h.get('role', 'user').upper()}: {h.get('text', '')}" for h in history[-6:]
                       if isinstance(h, dict))
     prompt = (
         f"LIVE DATA SNAPSHOT (user: {user.name}, role: {user.role})\n{build_context(user)}\n\n"
         f"RECENT CONVERSATION:\n{convo or '(none)'}\n\nQUESTION: {question}"
     )
-    # Google AI Studio issues both "AIza..." and newer "AQ...." keys; Vertex AI
-    # express keys are also "AQ....". Try AI Studio first, then Vertex.
-    order = ["ai_studio", "vertex"]
     errors = []
-    for kind in order:
-        try:
-            return _call_endpoint(kind, api_key, model, prompt)
-        except Exception as exc:
-            errors.append(str(exc))
+    # 1) The configured model on Google AI Studio (AI Studio keys start "AIza..." or "AQ....").
+    try:
+        return _call_endpoint("ai_studio", api_key, model, prompt)
+    except GeminiHTTPError as exc:
+        errors.append(f"{model}: {exc}")
+        busy = exc.status in RETRYABLE
+    except Exception as exc:
+        errors.append(f"{model}: {exc}")
+        busy = False
+    # 2) Overloaded: wait a moment and retry once, then try other flash models.
+    if busy:
+        time.sleep(1.5)
+        for m in [model] + _backup_models(api_key, model):
+            try:
+                answer = _call_endpoint("ai_studio", api_key, m, prompt)
+                if m != model:
+                    current_app.logger.info("Gemini %s busy, answered with %s", model, m)
+                return answer
+            except Exception as exc:
+                errors.append(f"{m}: {exc}")
+    # 3) Vertex AI express keys use a different endpoint.
+    try:
+        return _call_endpoint("vertex", api_key, model, prompt)
+    except Exception as exc:
+        errors.append(f"vertex: {exc}")
     raise RuntimeError(" | ".join(errors))
 
 
